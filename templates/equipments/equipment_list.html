@@ -57,21 +57,47 @@
         <table id="equipmentTable" class="table table-sm table-hover table-bordered align-middle text-nowrap compact-table">
           <thead class="table-light text-center">
             <tr>
+              <!-- Procurement Details -->
               <th>Image</th>
               <th>Property #</th>
               <th>Name</th>
               <th class="d-none d-md-table-cell">Description</th>
-              <th>Date</th>
-              <th class="d-none d-lg-table-cell">Amount</th>
-              <th class="d-none d-lg-table-cell">Assigned To</th>
-              <th class="d-none d-xl-table-cell">Location</th>
+              <th class="d-none d-md-table-cell">Additional Info</th>
+
+              <!-- Procurement Details -->
+              <th>PO Number</th>
+              <th>Fund Source</th>
+              <th>Supplier</th>
+              <th>Amount</th>
+              <th>PO Date</th>
+
+              <!-- Assignment -->
+               <th>Project Name</th>
+              <th>Assigned To</th>
+              <th>End User</th>
+
+              <!-- Location Context -->
+               <th>Deployment Location</th>
+              <th>Current Location</th>
+
+              <!-- Classification -->
+              <th>Category</th>
               <th>Status</th>
+
+              <!-- Timestamps -->
+              <th>Created</th>
+              <th>Created By</th>
+              <th>Updated</th>
+              <th>Updated By</th>
+
+              <!-- Action Buttons -->
               <th>Actions</th>
             </tr>
           </thead>
           <tbody style="font-size: 0.8rem;">
             {% for equipment in equipments %}
             <tr>
+              <!-- Procurement Details -->
               <td class="text-center">
                 {% if equipment.user_image %}
                   <img src="{{ equipment.user_image.url }}" class="img-thumbnail" style="width: 32px; height: 32px; object-fit: cover; padding: 1px;">
@@ -82,13 +108,50 @@
               <td>{{ equipment.item_propertynum }}</td>
               <td>{{ equipment.item_name }}</td>
               <td class="d-none d-md-table-cell">{{ equipment.item_desc }}</td>
+              <td class="d-none d-md-table-cell">{{ equipment.additional_info }}</td>
+
+
+              <td>{{ equipment.po_number }}</td>
+              <td>{{ equipment.fund_source }}</td>
+              <td>{{ equipment.supplier }}</td>
+              <td class="text-start">₱{{ equipment.item_amount|floatformat:2|intcomma }}</td>
               <td>{{ equipment.item_purdate|date:"M d, Y" }}</td>
-              <td class="text-start d-none d-lg-table-cell">₱{{ equipment.item_amount|floatformat:2|intcomma }}</td>
-              <td class="d-none d-lg-table-cell">{{ equipment.assigned_to }}</td>
-              <td class="d-none d-xl-table-cell">{{ equipment.location }}</td>
-              <td class="text-center">
+
+              <!-- Assignment -->
+              <td>{{ equipment.project_name }}</td>
+              <td>{{ equipment.assigned_to }}</td>
+              <td>{{ equipment.end_user }}</td>
+
+
+              <!-- Location Context -->
+              <td>{{ equipment.location }}</td>
+              <td>{{ equipment.current_location }}</td>
+
+              <!-- Classification -->
+              <td>{{ equipment.category.name }}</td>
+              <td>
                 <span class="badge bg-info text-dark small">{{ equipment.status.name }}</span>
               </td>
+
+              <!-- Timestamps -->
+              <td>{{ equipment.created_at|date:"M d, Y" }}</td>
+              <td>
+                {% if equipment.created_by %}
+                  {{ equipment.created_by.first_name }} {{ equipment.created_by.last_name }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>{{ equipment.updated_at|date:"M d, Y" }}</td>
+              <td>
+                {% if equipment.updated_by %}
+                  {{ equipment.updated_by.first_name }} {{ equipment.updated_by.last_name }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              
+              <!-- Action Buttons -->
               <td class="text-center">
                 <div class="btn-group btn-group-sm">
                   <a href="{% url 'equipments:edit' equipment.id %}" class="btn btn-outline-warning" title="Edit">
@@ -104,10 +167,11 @@
             </tr>
             {% empty %}
             <tr>
-              <td colspan="10" class="text-center text-muted">No equipment found.</td>
+              <td colspan="17" class="text-center text-muted">No equipment found.</td>
             </tr>
             {% endfor %}
           </tbody>
+
         </table>
       </div>
     </div>
