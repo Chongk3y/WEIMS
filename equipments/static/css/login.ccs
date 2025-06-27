@@ -1,0 +1,24 @@
+/* static/css/login.css */
+
+body {
+    background-color: #f4f6f8; /* A light, professional grey */
+}
+
+.login-page-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 90vh; /* Use min-height to handle content overflow */
+}
+
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    border: none; /* Remove default card border */
+    border-radius: 0.75rem; /* Softer border radius */
+}
+
+.login-logo {
+    width: 60px;
+    height: 60px;
+}

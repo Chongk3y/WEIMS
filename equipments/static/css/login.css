@@ -1,0 +1,91 @@
+/* static/css/login.css */
+:root {
+    --primary-color: #1A533B;
+    --primary-hover: #14422e;
+    --accent-color-light: #A8E6CF;
+}
+
+body {
+    /* The magic gradient background */
+    background: linear-gradient(135deg, #103426 0%, #1A533B 100%);
+    color: #f8f9fa; /* Light text for dark background */
+}
+
+.login-page-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+/* The Glassmorphism Card */
+.login-card {
+    width: 100%;
+    max-width: 420px;
+    background: rgba(255, 255, 255, 0.1); /* Semi-transparent white */
+    backdrop-filter: blur(15px); /* The blur effect */
+    -webkit-backdrop-filter: blur(15px); /* For Safari */
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 1rem;
+    padding: 1.5rem;
+}
+
+.login-logo {
+    max-width: 70px;
+    background: white; /* Give logo a solid background */
+    border-radius: 50%;
+    padding: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.login-card .card-body {
+    padding: 0;
+}
+
+.login-card .text-muted {
+    color: #e9ecef !important;
+}
+
+/* --- Form Styling for Dark Background --- */
+.form-label {
+    color: #f8f9fa;
+}
+
+.form-control {
+    background-color: rgba(0,0,0, 0.2);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+.form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5);
+}
+.form-control:focus {
+    background-color: rgba(0,0,0, 0.3);
+    color: white;
+    border-color: var(--accent-color-light);
+    box-shadow: 0 0 0 0.25rem rgba(168, 230, 207, 0.25);
+}
+.form-check-label {
+    color: #f8f9fa;
+}
+.form-check-input {
+    background-color: rgba(0,0,0, 0.2);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+.form-check-input:checked {
+    background-color: var(--accent-color-light);
+    border-color: var(--accent-color-light);
+}
+.btn-primary {
+    background-color: var(--accent-color-light);
+    border-color: var(--accent-color-light);
+    color: var(--primary-color);
+}
+.btn-primary:hover {
+    background-color: white;
+    border-color: white;
+    color: var(--primary-color);
+}
+a { color: var(--accent-color-light); }
+a:hover { color: white; }

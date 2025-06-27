@@ -1,0 +1,154 @@
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: Arial, sans-serif;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+  }
+  .equipment-form-card {
+    padding: 10px;
+  }
+}
+
+.wrapper {
+  min-height: 100vh;
+}
+
+.sidebar {
+  min-height: 100vh;
+  flex-shrink: 0;
+}
+
+.sidebar {
+  height: 100vh;
+  width: 240px;
+  background-color: #0e4a39;
+  color: white;
+  padding-top: 10px;
+}
+
+.sidebar .logo {
+  text-align: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sidebar .logo img {
+  height: 50px;
+}
+
+.sidebar .logo h5 {
+  margin-top: 5px;
+  font-weight: bold;
+}
+
+.sidebar .nav-link {
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.sidebar .nav-link:hover {
+  background-color: #1abc9c;
+  color: white;
+}
+
+.sidebar .nav-link.active {
+  background-color: #aef0dc;
+  color: #0e4a39;
+  font-weight: bold;
+}
+
+.sidebar .nav-link i {
+  margin-right: 10px;
+}
+
+.btn-custom {
+  background-color: #0e4a39;
+  border-color: #0e4a39;
+  color: #fff;
+}
+
+.btn-custom:hover {
+  background-color: #1abc9c;
+  border-color: #1abc9c;
+  color: #fff;
+}
+
+/* Equipment Form Card */
+.equipment-form-card {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 40px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  background-color: white;
+}
+
+/* Form Section Layout */
+.form-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 30px;
+}
+
+/* Logo */
+.form-logo {
+  width: 120px;
+  margin-top: 8px;
+}
+
+/* Field Area */
+.form-fields {
+  flex: 1;
+}
+
+/* Labels */
+.form-label {
+  font-weight: 600;
+}
+
+/* Button Section */
+.form-buttons {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.table {
+  font-size: 0.85rem;
+  table-layout: auto; /* Allow flexible width */
+}
+
+.table td, .table th {
+  padding: 0.5rem;
+  vertical-align: middle;
+}
+
+
+.table img {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+/* Make Property #, Description, Assigned To, and Location wrap */
+.table td:nth-child(2),  /* Property # */
+.table td:nth-child(4),  /* Description */
+.table td:nth-child(7),  /* Assigned To */
+.table td:nth-child(8) { /* Location */
+  white-space: normal;
+  word-break: break-word;
+  max-width: 160px; /* Optional: limit width to trigger wrapping */
+}
+
+
+
+

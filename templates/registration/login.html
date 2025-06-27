@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sign In - WEIMS{% endblock %}
+
+{% block custom_css %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="login-page-wrapper">
+    <div class="login-card">
+        <div class="card-body">
+            <div class="text-center mb-4">
+                <img src="{% static 'image/wes_logo.png' %}" alt="WESMAARDEC Logo" class="login-logo mb-3">
+                <h1 class="h3 mb-1 fw-bold">Welcome to WEIMS</h1>
+                <p class="text-muted">Sign in to access your dashboard</p>
+            </div>
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger text-center p-2 mb-3">
+                {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+            </div>
+            {% endif %}
+
+            <form method="post" novalidate>
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="id_username" class="form-label">Username</label>
+                    <input type="text" name="username" autofocus required class="form-control form-control-lg" id="id_username" placeholder="Enter your username">
+                </div>
+                <div class="mb-4">
+                    <label for="id_password" class="form-label">Password</label>
+                    <input type="password" name="password" required class="form-control form-control-lg" id="id_password" placeholder="••••••••">
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="rememberMe">
+                        <label class="form-check-label" for="rememberMe">Remember Me</label>
+                    </div>
+                    <a href="{% url 'password_reset' %}" class="small text-decoration-none">Forgot Password?</a>
+                </div>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary btn-lg fw-bold">Sign In</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block sidebar %}{% endblock %}
+{% block header %}{% endblock %}

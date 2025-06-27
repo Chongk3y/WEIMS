@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Equipment List{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2 px-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="fw-semibold mb-0">📋 Equipment Management</h5> 
+  </div>
+
+  <!-- Filters -->
+  <form method="get" class="row gx-2 gy-2 align-items-center mb-3">
+    <div class="col-md-3">
+      <input type="text" id="tableSearch" class="form-control form-control-sm" placeholder="Search...">
+    </div>
+    <div class="col-md-3">
+      <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All Categories</option>
+        {% for cat in categories %}
+        <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+        <option value="">All Statuses</option>
+        {% for stat in statuses %}
+        <option value="{{ stat.id }}" {% if request.GET.status == stat.id|stringformat:"s" %}selected{% endif %}>{{ stat.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto">
+      <input type="hidden" name="order" value="{% if request.GET.order == 'asc' %}desc{% else %}asc{% endif %}">
+      <button type="submit" class="btn btn-outline-secondary btn-sm" title="Toggle Order">
+        <i class="bi {% if request.GET.order == 'asc' %}bi-sort-down-alt{% else %}bi-sort-up{% endif %} small"></i>
+      </button>
+    </div>
+
+    {% if is_admin or is_encoder %}
+    <div class="col-auto">
+      <button type="button" onclick="window.print()" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-printer"></i>
+      </button>
+    </div>
+    <div class="col-auto">
+      <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm">
+        <i class="bi bi-plus-circle small"></i> Add
+      </a>
+    </div>
+    {% endif %}
+  </form>
+
+  <!-- Equipment Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-2">
+      <div class="table-responsive">
+        <table id="equipmentTable" class="table table-sm table-hover table-bordered align-middle text-nowrap compact-table">
+          <thead class="table-light text-center">
+            <tr>
+              <th>Image</th>
+              <th>Property #</th>
+              <th>Name</th>
+              <th class="d-none d-md-table-cell">Description</th>
+              <th>Date</th>
+              <th class="d-none d-lg-table-cell">Amount</th>
+              <th class="d-none d-lg-table-cell">Assigned To</th>
+              <th class="d-none d-xl-table-cell">Location</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody style="font-size: 0.8rem;">
+            {% for equipment in equipments %}
+            <tr>
+              <td class="text-center">
+                {% if equipment.user_image %}
+                  <img src="{{ equipment.user_image.url }}" class="img-thumbnail" style="width: 32px; height: 32px; object-fit: cover; padding: 1px;">
+                {% else %}
+                  <span class="text-muted small">No Image</span>
+                {% endif %}
+              </td>
+              <td>{{ equipment.item_propertynum }}</td>
+              <td>{{ equipment.item_name }}</td>
+              <td class="d-none d-md-table-cell">{{ equipment.item_desc }}</td>
+              <td>{{ equipment.item_purdate|date:"M d, Y" }}</td>
+              <td class="text-start d-none d-lg-table-cell">₱{{ equipment.item_amount|floatformat:2|intcomma }}</td>
+              <td class="d-none d-lg-table-cell">{{ equipment.assigned_to }}</td>
+              <td class="d-none d-xl-table-cell">{{ equipment.location }}</td>
+              <td class="text-center">
+                <span class="badge bg-info text-dark small">{{ equipment.status.name }}</span>
+              </td>
+              <td class="text-center">
+                <div class="btn-group btn-group-sm">
+                  <a href="{% url 'equipments:edit' equipment.id %}" class="btn btn-outline-warning" title="Edit">
+                    <i class="bi bi-pencil-square small"></i>
+                  </a>
+                  {% if is_admin %}
+                  <a href="{% url 'equipments:delete' equipment.id %}" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure?');">
+                    <i class="bi bi-trash small"></i>
+                  </a>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="10" class="text-center text-muted">No equipment found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Compact Table Style -->
+<style>
+.compact-table th,
+.compact-table td {
+  padding: 0.25rem 0.4rem !important;
+  vertical-align: middle;
+  font-size: 0.8rem;
+}
+</style>
+
+<!-- DataTables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script>
+  $(document).ready(function () {
+    const table = $('#equipmentTable').DataTable({
+      paging: true,
+      ordering: true,
+      info: true,
+      lengthChange: false,
+      searching: true,
+      dom: 'lrtip'
+    });
+
+    $('#tableSearch').on('keyup', function () {
+      table.search(this.value).draw();
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+{% block title %}Manage Users{% endblock %}
+{% load static %}
+{% block content %}
+
+<div class="container-fluid py-3">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-semibold mb-0">👥 User Management</h5>
+    {% if is_admin %}
+    <a href="{% url 'equipments:add_user' %}" class="btn btn-sm btn-outline-success">
+      <i class="bi bi-person-plus small"></i> Add User
+    </a>
+    {% endif %}
+  </div>
+
+  <!-- Filter Controls -->
+  <form method="get" class="row g-2 align-items-center mb-3" id="filterForm">
+    <div class="col-md-4 col-sm-6">
+      <input type="text" id="userTableSearch" class="form-control form-control-sm" placeholder="Search users...">
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <select name="order" class="form-select form-select-sm" onchange="document.getElementById('filterForm').submit();">
+        <option value="desc" {% if request.GET.order == "desc" or not request.GET.order %}selected{% endif %}>Newest First</option>
+        <option value="asc" {% if request.GET.order == "asc" %}selected{% endif %}>Oldest First</option>
+      </select>
+    </div>
+  </form>
+
+  <!-- Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-2">
+      <div class="table-responsive">
+        <table id="usersTable" class="table table-sm table-hover table-bordered align-middle text-nowrap">
+          <thead class="table-light text-center small">
+            <tr>
+              <th>Username</th>
+              <th>Email</th>
+              <th>Date Joined</th>
+              {% if is_admin %}
+              <th>Actions</th>
+              {% endif %}
+            </tr>
+          </thead>
+          <tbody class="small">
+            {% for user in users %}
+            <tr>
+              <td>{{ user.username }}</td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.date_joined|date:"M d, Y" }}</td>
+              {% if is_admin %}
+              <td class="text-center">
+                <div class="btn-group btn-group-sm">
+                  <a href="#" class="btn btn-outline-warning disabled" title="Edit">
+                    <i class="bi bi-pencil-square"></i>
+                  </a>
+                  <a href="#" class="btn btn-outline-danger disabled" title="Delete">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                </div>
+              </td>
+              {% endif %}
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted">No users found.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DataTables Custom Search -->
+<script>
+  $(document).ready(function () {
+    var table = $('#usersTable').DataTable({
+      paging: true,
+      ordering: true,
+      info: false,
+      lengthChange: false,
+      searching: true,
+      dom: 'lrtip'
+    });
+
+    $('#userTableSearch').on('input', function () {
+      table.search(this.value).draw();
+    });
+  });
+</script>
+
+{% endblock %}
