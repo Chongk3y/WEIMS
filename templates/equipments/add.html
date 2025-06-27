@@ -16,7 +16,7 @@
       <form action="{% url 'equipments:processaddequipment' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="row g-2">
-          <!-- Equipment Details -->
+          <!-- Procurement Details -->
           <div class="col-12 small fw-bold text-secondary">🛠 Equipment Details</div>
 
           <div class="col-sm-6">
@@ -39,25 +39,17 @@
           </div>
 
           <div class="col-sm-6">
-            <label class="form-label small mb-1">PO # {% if errors.po_number %}<span class="text-danger">{{ errors.po_number }}</span>{% endif %}</label>
-            <input type="text" class="form-control form-control-sm" name="po_number" value="{{ values.po_number|default_if_none:'' }}">
+            <label class="form-label small mb-1">Additional Info {% if errors.additional_info %}<span class="text-danger">{{ errors.additional_info }}</span>{% endif %}</label>
+            <input type="text" class="form-control form-control-sm" name="additional_info" value="{{ values.additional_info|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Category</label>
-            <select class="form-select form-select-sm" name="category_id">
-              {% for cat in categories %}
-              <option value="{{ cat.id }}" {% if values.category_id == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
 
-          <!-- Purchase -->
+          <!-- Purchase Details  -->
           <div class="col-12 small fw-bold text-secondary">🧾 Purchase Details</div>
 
           <div class="col-sm-6">
-            <label class="form-label small mb-1">Date {% if errors.item_purdate %}<span class="text-danger">{{ errors.item_purdate }}</span>{% endif %}</label>
-            <input type="date" class="form-control form-control-sm" name="item_purdate" value="{{ values.item_purdate|default_if_none:'' }}">
+            <label class="form-label small mb-1">PO # {% if errors.po_number %}<span class="text-danger">{{ errors.po_number }}</span>{% endif %}</label>
+            <input type="text" class="form-control form-control-sm" name="po_number" value="{{ values.po_number|default_if_none:'' }}">
           </div>
 
           <div class="col-sm-6">
@@ -75,8 +67,18 @@
             <input type="number" step="0.01" class="form-control form-control-sm" name="item_amount" value="{{ values.item_amount|default_if_none:'' }}">
           </div>
 
+          <div class="col-sm-6">
+            <label class="form-label small mb-1">Date {% if errors.item_purdate %}<span class="text-danger">{{ errors.item_purdate }}</span>{% endif %}</label>
+            <input type="date" class="form-control form-control-sm" name="item_purdate" value="{{ values.item_purdate|default_if_none:'' }}">
+          </div>
+
           <!-- Assignment -->
-          <div class="col-12 small fw-bold text-secondary">📍 Assignment & Location</div>
+          <div class="col-12 small fw-bold text-secondary">📍 Project & Assignment </div>
+
+          <div class="col-sm-6">
+            <label class="form-label small mb-1">Project Name {% if errors.project_name %}<span class="text-danger">{{ errors.project_name }}</span>{% endif %}</label>
+            <input type="text" class="form-control form-control-sm" name="project_name" value="{{ values.project_name|default_if_none:'' }}">
+          </div>
 
           <div class="col-sm-6">
             <label class="form-label small mb-1">Assigned To {% if errors.assigned_to %}<span class="text-danger">{{ errors.assigned_to }}</span>{% endif %}</label>
@@ -84,23 +86,35 @@
           </div>
 
           <div class="col-sm-6">
-            <label class="form-label small mb-1">Location {% if errors.location %}<span class="text-danger">{{ errors.location }}</span>{% endif %}</label>
-            <input type="text" class="form-control form-control-sm" name="location" value="{{ values.location|default_if_none:'' }}">
-          </div>
-
-          <div class="col-sm-6">
             <label class="form-label small mb-1">End User {% if errors.end_user %}<span class="text-danger">{{ errors.end_user }}</span>{% endif %}</label>
             <input type="text" class="form-control form-control-sm" name="end_user" value="{{ values.end_user|default_if_none:'' }}">
           </div>
 
-          <!-- Extra -->
-          <div class="col-12 small fw-bold text-secondary">📋 Extra</div>
+
+
+          <!-- Location Context -->
+           <div class="col-12 small fw-bold text-secondary">📍 Location </div>
 
           <div class="col-sm-6">
-            <label class="form-label small mb-1">Added by</label>
-            <select class="form-select form-select-sm" name="emp_id">
-              {% for user in users %}
-              <option value="{{ user.id }}" {% if values.emp_id == user.id|stringformat:"s" %}selected{% endif %}>{{ user.username }}</option>
+            <label class="form-label small mb-1">Deployment Location {% if errors.location %}<span class="text-danger">{{ errors.location }}</span>{% endif %}</label>
+            <input type="text" class="form-control form-control-sm" name="location" value="{{ values.location|default_if_none:'' }}">
+          </div>
+
+          <div class="col-sm-6">
+            <label class="form-label small mb-1">Current Location {% if errors.current_location %}<span class="text-danger">{{ errors.current_location }}</span>{% endif %}</label>
+            <input type="text" class="form-control form-control-sm" name="current_location" value="{{ values.current_location|default_if_none:'' }}">
+          </div>
+
+
+          <!-- Extra -->
+          <div class="col-12 small fw-bold text-secondary">📋 Extra</div>
+          
+          <!-- Classification -->
+          <div class="col-sm-6">
+            <label class="form-label small mb-1">Category</label>
+            <select class="form-select form-select-sm" name="category_id">
+              {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if values.category_id == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
               {% endfor %}
             </select>
           </div>
@@ -116,7 +130,7 @@
 
           <!-- Buttons -->
           <div class="col-12 text-end mt-2">
-            {% if is_admin %}
+            {% if is_admin or is_encoder %}
             <button type="submit" class="btn btn-sm btn-custom px-3">Save</button>
             <a href="{% url 'equipments:index' %}" class="btn btn-sm btn-outline-secondary px-3">Cancel</a>
             {% endif %}
