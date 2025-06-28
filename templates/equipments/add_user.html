@@ -2,29 +2,41 @@
 {% block title %}Add User{% endblock %}
 {% block content %}
 
-<div class="container-fluid py-2 px-3" style="max-width: 100vw;">
-  <div class="card shadow-sm mt-3">
+<div class="container-fluid py-3 px-4" style="max-width: 900px;">
+  <div class="card shadow-sm">
     <div class="card-header text-white py-2" style="background-color: #0e4a39;">
-      <h6 class="mb-0">Add New User</h6>
+      <h6 class="mb-0">👤 Add New User</h6>
     </div>
-    <div class="card-body p-3">
+    <div class="card-body p-4">
       {% if error %}
         <div class="alert alert-danger small py-2 mb-3">{{ error }}</div>
       {% endif %}
       <form method="post">
         {% csrf_token %}
-        <div class="row g-2">
+        <div class="row g-3">
+
+          <!-- Name Fields -->
           <div class="col-md-6">
-            <label class="form-label small mb-1">Username</label>
-            <input type="text" name="username" class="form-control form-control-sm" required>
+            <label class="form-label small mb-1">First Name</label>
+            <input type="text" name="first_name" class="form-control form-control-sm" placeholder="e.g., Juan" required>
           </div>
           <div class="col-md-6">
-            <label class="form-label small mb-1">Email (optional)</label>
-            <input type="email" name="email" class="form-control form-control-sm">
+            <label class="form-label small mb-1">Last Name</label>
+            <input type="text" name="last_name" class="form-control form-control-sm" placeholder="e.g., Dela Cruz" required>
+          </div>
+
+          <!-- Login Fields -->
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Username</label>
+            <input type="text" name="username" class="form-control form-control-sm" placeholder="Unique username" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small mb-1">Email <span class="text-muted small">(optional)</span></label>
+            <input type="email" name="email" class="form-control form-control-sm" placeholder="user@example.com">
           </div>
           <div class="col-md-6">
             <label class="form-label small mb-1">Password</label>
-            <input type="password" name="password" class="form-control form-control-sm" required>
+            <input type="password" name="password" class="form-control form-control-sm" placeholder="Minimum 6 characters" required>
           </div>
           <div class="col-md-6">
             <label class="form-label small mb-1">Role</label>
@@ -35,10 +47,13 @@
               <option value="Client">Client</option>
             </select>
           </div>
-          <div class="col-12 text-end mt-2">
-            <button type="submit" class="btn btn-sm btn-custom px-4">Add User</button>
-            <a href="{% url 'equipments:user' %}" class="btn btn-sm btn-outline-secondary px-4">Cancel</a>
+
+          <!-- Actions -->
+          <div class="col-12 d-flex justify-content-end pt-2 gap-2">
+            <a href="{% url 'equipments:user' %}" class="btn btn-outline-secondary btn-sm px-4">Cancel</a>
+            <button type="submit" class="btn btn-custom btn-sm px-4">Add User</button>
           </div>
+
         </div>
       </form>
     </div>
