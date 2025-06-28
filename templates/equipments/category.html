@@ -69,22 +69,22 @@
                 </div>
               </div>
             </div>
-
-            <!-- Delete Modal -->
+            
             <div class="modal fade" id="deleteCategoryModal{{ category.id }}" tabindex="-1" aria-labelledby="deleteCategoryModalLabel{{ category.id }}" aria-hidden="true">
-              <div class="modal-dialog">
+              <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
+                  <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteCategoryModalLabel{{ category.id }}">Delete Category</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                  </div>
                   <form method="post" action="{% url 'equipments:delete_category' category.id %}">
                     {% csrf_token %}
-                    <div class="modal-header">
-                      <h5 class="modal-title">Delete Category</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
                     <div class="modal-body">
-                      Are you sure you want to delete <strong>{{ category.name }}</strong>?
+                      Are you sure you want to delete category
+                      <strong>{{ category.name }}</strong>?
                     </div>
                     <div class="modal-footer">
-                      <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                      <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
                       <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                     </div>
                   </form>
