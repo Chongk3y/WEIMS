@@ -1,8 +1,12 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% block title %}Equipment List{% endblock %}
-
 {% block content %}
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
 <div class="container-fluid py-2 px-3">
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="fw-semibold mb-0">📋 Equipment Management</h5> 
@@ -21,6 +25,7 @@
         {% endfor %}
       </select>
     </div>
+
     <div class="col-md-3">
       <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
         <option value="">All Statuses</option>
@@ -29,6 +34,7 @@
         {% endfor %}
       </select>
     </div>
+    
     <div class="col-auto">
       <input type="hidden" name="order" value="{% if request.GET.order == 'asc' %}desc{% else %}asc{% endif %}">
       <button type="submit" class="btn btn-outline-secondary btn-sm" title="Toggle Order">
@@ -49,6 +55,14 @@
     </div>
     {% endif %}
   </form>
+
+    <form action="{% url 'equipments:import_excel' %}" method="post" enctype="multipart/form-data" class="d-inline">
+      {% csrf_token %}
+      <input type="file" name="excel_file" accept=".xlsx,.xls" style="display:none;" id="importExcelInput" onchange="this.form.submit()">
+      <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('importExcelInput').click();">
+        <i class="bi bi-upload"></i> Import Excel
+      </button>
+    </form>
 
   <!-- Equipment Table -->
   <div class="card shadow-sm border-0">
@@ -72,12 +86,12 @@
               <th>PO Date</th>
 
               <!-- Assignment -->
-               <th>Project Name</th>
+              <th>Project Name</th>
               <th>Assigned To</th>
               <th>End User</th>
 
               <!-- Location Context -->
-               <th>Deployment Location</th>
+              <th>Deployment Location</th>
               <th>Current Location</th>
 
               <!-- Classification -->
@@ -92,6 +106,7 @@
 
               <!-- Action Buttons -->
               <th>Actions</th>
+              
             </tr>
           </thead>
           <tbody style="font-size: 0.8rem;">
@@ -164,10 +179,6 @@
                   {% endif %}
                 </div>
               </td>
-            </tr>
-            {% empty %}
-            <tr>
-              <td colspan="17" class="text-center text-muted">No equipment found.</td>
             </tr>
             {% endfor %}
           </tbody>

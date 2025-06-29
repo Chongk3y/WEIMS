@@ -23,6 +23,7 @@ urlpatterns = [
     path('statuses/edit/<int:id>/', views.edit_status, name='edit_status'),
     path('statuses/delete/<int:id>/', views.delete_status, name='delete_status'),
     path('export/csv/', views.export_csv, name='export_csv'),
+    path('import-excel/', views.import_excel, name='import_excel'),
 
     
 ] + static(settings.MEDIA_URL, 

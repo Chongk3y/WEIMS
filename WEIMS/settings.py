@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'equipments.apps.EquipmentsConfig',
     'django.contrib.humanize',
+
+    'import_export',
 ]
 
 MIDDLEWARE = [

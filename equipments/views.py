@@ -10,6 +10,8 @@ from django.db.models import F, Q
 from django.contrib import messages
 from django.core.paginator import Paginator
 import csv
+import openpyxl
+from datetime import datetime
 
 
 def is_admin(user):
@@ -93,15 +95,15 @@ def processaddequipment(request):
     if request.method == 'POST':
         item_propertynum = request.POST.get('item_propertynum')
         item_name = request.POST.get('item_name')
-        item_desc = request.POST.get('item_desc')
-        item_purdate = request.POST.get('item_purdate')
+        item_desc = request.POST.get('item_desc') or None
+        item_purdate = request.POST.get('item_purdate') or None
         po_number = request.POST.get('po_number')
-        fund_source = request.POST.get('fund_source')
-        supplier = request.POST.get('supplier')
+        fund_source = request.POST.get('fund_source') or None
+        supplier = request.POST.get('supplier') or None
         item_amount = request.POST.get('item_amount')
-        assigned_to = request.POST.get('assigned_to')
-        location = request.POST.get('location')
-        end_user = request.POST.get('end_user')
+        assigned_to = request.POST.get('assigned_to') or None
+        location = request.POST.get('location') or None
+        end_user = request.POST.get('end_user') or None
         category_id = request.POST.get('category_id')
         status_id = request.POST.get('status_id')
         user_image = request.FILES.get('user_image', 'equipment_pic/image.jpg')
@@ -130,7 +132,7 @@ def processaddequipment(request):
                 item_propertynum=item_propertynum,
                 item_name=item_name,
                 item_desc=item_desc,
-                item_purdate=item_purdate,
+                item_purdate=item_purdate if item_purdate else None,
                 po_number=po_number,
                 fund_source=fund_source,
                 supplier=supplier,
@@ -138,11 +140,11 @@ def processaddequipment(request):
                 assigned_to=assigned_to,
                 location=location,
                 end_user=end_user,
-                emp=request.user,  # <-- Set to logged-in user
+                emp=request.user,
                 category_id=category_id,
                 status_id=status_id,
-                created_by=request.user,  # <-- Track creator
-                updated_by=request.user   # <-- Track updater
+                created_by=request.user,
+                updated_by=request.user
             )
             equipment.save()
             return HttpResponseRedirect('/equipments/')
@@ -416,5 +418,50 @@ def export_csv(request):
     return response
 
 
+@login_required
+@user_passes_test(is_admin_or_encoder)
+def import_excel(request):
+    if request.method == 'POST' and request.FILES.get('excel_file'):
+        excel_file = request.FILES['excel_file']
+        wb = openpyxl.load_workbook(excel_file)
+        ws = wb.active
 
+        # Adjust these indices/names to match your Excel columns
+        for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            try:
+                Equipment.objects.create(
+                    item_propertynum=row[0],
+                    item_name=row[1],
+                    item_desc=row[2] if row[2] else None,
+                    additional_info=(row[3][:300] if row[3] else None),
+                    item_purdate=parse_date(row[4]),
+                    po_number=row[5] if row[5] else None,
+                    fund_source=row[6] if row[6] else None,
+                    supplier=row[7] if row[7] else None,
+                    item_amount=row[8] if row[8] else None,
+                    project_name=row[9] if row[9] else None,
+                    assigned_to=row[10] if row[10] else None,
+                    end_user=row[11] if row[11] else None,
+                    location=row[12] if row[12] else None,
+                    current_location=row[13] if row[13] else None,
+                    category=Category.objects.get(pk=1),  # or use your logic
+                    status=Status.objects.get(pk=1),      # or use your logic
+                    emp=request.user,
+                    created_by=request.user,
+                    updated_by=request.user,
+                )
+            except Exception as e:
+                messages.error(request, f"Row {idx}: {e}")
+        messages.success(request, "Excel import completed.")
+    return redirect('equipments:index')
+
+def parse_date(val):
+    if not val:
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    try:
+        return datetime.strptime(val, "%Y-%m-%d").date()
+    except Exception:
+        return None  # or raise
 
