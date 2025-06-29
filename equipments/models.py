@@ -45,36 +45,39 @@ class Category(models.Model):
         return self.name
 
 class Equipment(models.Model):
-    user_image = models.ImageField(upload_to=image_path, default='equipment_pic/default.jpg', verbose_name="Equipment Image")
+    user_image = models.ImageField(
+        upload_to=image_path,
+        default='equipment_pic/default.jpg',
+        verbose_name="Equipment Image"
+    )
+
     item_propertynum = models.CharField(max_length=50, verbose_name="Property Number")
     item_name = models.CharField(max_length=50, verbose_name="Item Name")
-    item_desc = models.CharField(max_length=50, verbose_name="Item Description")
-    additional_info = models.CharField(max_length=255, blank=True, null=True, verbose_name="Additional Info")
+    item_desc = models.CharField(max_length=50, blank=True, null=True, verbose_name="Item Description")
+    additional_info = models.CharField(max_length=1000, verbose_name="Additional Info")
 
-
-    item_purdate = models.DateField(verbose_name="Purchase Date")
+    item_purdate = models.DateField(blank=True, null=True, verbose_name="Purchase Date")
     po_number = models.CharField(max_length=50, verbose_name="PO Number")
     fund_source = models.CharField(max_length=100, blank=True, null=True, verbose_name="Fund Source")
-    supplier = models.CharField(max_length=100, verbose_name="Supplier")
+    supplier = models.CharField(max_length=100, blank=True, null=True, verbose_name="Supplier")
+
     item_amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Amount")
 
-
     project_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Project Name")
-    assigned_to = models.CharField(max_length=100, verbose_name="Assigned To")
+    assigned_to = models.CharField(max_length=100, blank=True, null=True, verbose_name="Assigned To")
     end_user = models.CharField(max_length=100, verbose_name="End User")
 
     location = models.CharField(max_length=100, verbose_name="Location")
     current_location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Current Location")
 
-
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="Category", default=1)
     status = models.ForeignKey(Status, on_delete=models.CASCADE, verbose_name="Status", default=1)
 
+    emp = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Employee")
 
-    emp = models.ForeignKey(User, on_delete=models.CASCADE, blank=False, null=False, verbose_name="Employee")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Created At")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Updated At")
-    
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name='equipment_created',

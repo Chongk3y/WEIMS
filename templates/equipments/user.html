@@ -33,6 +33,7 @@
         <table id="usersTable" class="table table-sm table-hover table-bordered align-middle text-nowrap">
           <thead class="table-light text-center small">
             <tr>
+              <th>Name</th>
               <th>Role</th>
               <th>Email</th>
               <th>Date Joined</th>
@@ -44,6 +45,7 @@
           <tbody class="small">
             {% for user in users %}
             <tr>
+              <td>{{ user.first_name }} {{ user.last_name }}</td>
               <td>{{ user.username }}</td>
               <td>{{ user.email }}</td>
               <td>{{ user.date_joined|date:"M d, Y" }}</td>
