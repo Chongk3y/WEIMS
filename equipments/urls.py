@@ -24,7 +24,11 @@ urlpatterns = [
     path('statuses/delete/<int:id>/', views.delete_status, name='delete_status'),
     path('export/csv/', views.export_csv, name='export_csv'),
     path('import-excel/', views.import_excel, name='import_excel'),
-
+    path('equipment/<int:pk>/json/', views.equipment_detail_json, name='equipment_detail_json'),
+    path('equipment/table/json/', views.equipment_table_json, name='equipment_table_json'),
+    path('bulk-update/', views.bulk_update_equipment, name='bulk_update'),
+    path('returned/', views.returned, name='returned'),
+    path('return-equipment/', views.return_equipment, name='return_equipment'),
     
 ] + static(settings.MEDIA_URL, 
     document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, 
