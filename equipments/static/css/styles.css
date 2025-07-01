@@ -1,7 +1,13 @@
 html, body {
   height: 100%;
   margin: 0;
+  padding: 0;
   font-family: Arial, sans-serif;
+}
+
+#content-area {
+  max-height: calc(100vh - 56px); /* Adjust based on header/footer height */
+  overflow-y: auto;
 }
 
 @media (max-width: 768px) {
@@ -148,7 +154,5 @@ html, body {
   word-break: break-word;
   max-width: 160px; /* Optional: limit width to trigger wrapping */
 }
-
-
 
 

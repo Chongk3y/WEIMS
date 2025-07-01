@@ -7,195 +7,293 @@
     <div class="alert alert-{{ message.tags }}">{{ message }}</div>
   {% endfor %}
 {% endif %}
+
 <div class="container-fluid py-2 px-3">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-    <h5 class="fw-semibold mb-0">📋 Equipment Management</h5> 
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h5 class="fw-semibold mb-0">📋 Equipment Management</h5>
   </div>
 
-  <!-- Filters -->
-  <form method="get" class="row gx-2 gy-2 align-items-center mb-3">
+  <!-- Combined Toolbar Row -->
+  <div class="row gx-2 gy-1 align-items-center ">
+
+    <!-- Search Bar -->
     <div class="col-md-3">
-      <input type="text" id="tableSearch" class="form-control form-control-sm" placeholder="Search...">
-    </div>
-    <div class="col-md-3">
-      <select name="category" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">All Categories</option>
-        {% for cat in categories %}
-        <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
-        {% endfor %}
-      </select>
+      <input type="text" id="tableSearch" class="form-control form-control-sm" placeholder="Search equipment...">
     </div>
 
-    <div class="col-md-3">
-      <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-        <option value="">All Statuses</option>
-        {% for stat in statuses %}
-        <option value="{{ stat.id }}" {% if request.GET.status == stat.id|stringformat:"s" %}selected{% endif %}>{{ stat.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    
-    <div class="col-auto">
-      <input type="hidden" name="order" value="{% if request.GET.order == 'asc' %}desc{% else %}asc{% endif %}">
-      <button type="submit" class="btn btn-outline-secondary btn-sm" title="Toggle Order">
-        <i class="bi {% if request.GET.order == 'asc' %}bi-sort-down-alt{% else %}bi-sort-up{% endif %} small"></i>
-      </button>
-    </div>
+      <!-- Status Dropdown -->
+      <div class="col-md-2">
+        <select name="status_id" form="bulkUpdateForm" class="form-select form-select-sm">
+          <option value="">Change Status...</option>
+          {% for status in statuses %}
+            <option value="{{ status.id }}">{{ status.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-    {% if is_admin or is_encoder %}
-    <div class="col-auto">
-      <button type="button" onclick="window.print()" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-printer"></i>
-      </button>
-    </div>
-    <div class="col-auto">
-      <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm">
-        <i class="bi bi-plus-circle small"></i> Add
-      </a>
-    </div>
-    {% endif %}
-  </form>
+      <!-- Category Dropdown -->
+      <div class="col-md-2">
+        <select name="category_id" form="bulkUpdateForm" class="form-select form-select-sm">
+          <option value="">Change Category...</option>
+          {% for category in categories %}
+            <option value="{{ category.id }}">{{ category.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
 
-    <form action="{% url 'equipments:import_excel' %}" method="post" enctype="multipart/form-data" class="d-inline">
-      {% csrf_token %}
-      <input type="file" name="excel_file" accept=".xlsx,.xls" style="display:none;" id="importExcelInput" onchange="this.form.submit()">
-      <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('importExcelInput').click();">
-        <i class="bi bi-upload"></i> Import Excel
-      </button>
-    </form>
+      <!-- Apply to Selected Button -->
+      <div class="col-md-2">
+        <form id="bulkUpdateForm" method="post" action="{% url 'equipments:bulk_update' %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-outline-primary btn-sm w-100">Apply to Selected</button>
+        </form>
+      </div>
+
+      <!-- Advanced Filter Button -->
+      <div class="col-md-auto">
+        <button type="button" class="btn btn-outline-dark btn-sm w-100" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
+          <i class="bi bi-funnel"></i> Filter
+        </button>
+      </div>
+
+      {% if is_admin or is_encoder %}
+      <!-- Import Excel Button -->
+      <div class="col-md-auto">
+        <form action="{% url 'equipments:import_excel' %}" method="post" enctype="multipart/form-data" id="importExcelForm">
+          {% csrf_token %}
+          <input type="file" name="excel_file" accept=".xlsx,.xls" style="display:none;" id="importExcelInput" onchange="this.form.submit()">
+          <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="document.getElementById('importExcelInput').click();">
+            <i class="bi bi-upload"></i> Import
+          </button>
+        </form>
+      </div>
+
+      <!-- Print Button -->
+      <div class="col-md-auto">
+        <button type="button" onclick="window.print()" class="btn btn-outline-secondary btn-sm w-100">
+          <i class="bi bi-printer"></i>
+        </button>
+      </div>
+
+      <!-- Add Equipment Button -->
+      <div class="col-md-auto">
+        <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm w-100">
+          <i class="bi bi-plus-circle small"></i> Add
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
 
   <!-- Equipment Table -->
   <div class="card shadow-sm border-0">
     <div class="card-body p-2">
       <div class="table-responsive">
-        <table id="equipmentTable" class="table table-sm table-hover table-bordered align-middle text-nowrap compact-table">
-          <thead class="table-light text-center">
+        <table id="equipmentTable" class="table ...">
+          <thead>
             <tr>
-              <!-- Procurement Details -->
+              <th><input type="checkbox" id="selectAll"></th>
+              <th style="display:none;"></th> <!-- Hidden ID column -->
               <th>Image</th>
               <th>Property #</th>
               <th>Name</th>
-              <th class="d-none d-md-table-cell">Description</th>
-              <th class="d-none d-md-table-cell">Additional Info</th>
-
-              <!-- Procurement Details -->
-              <th>PO Number</th>
-              <th>Fund Source</th>
-              <th>Supplier</th>
+              <th>Description</th>
               <th>Amount</th>
-              <th>PO Date</th>
-
-              <!-- Assignment -->
-              <th>Project Name</th>
-              <th>Assigned To</th>
-              <th>End User</th>
-
-              <!-- Location Context -->
-              <th>Deployment Location</th>
-              <th>Current Location</th>
-
-              <!-- Classification -->
               <th>Category</th>
               <th>Status</th>
-
-              <!-- Timestamps -->
-              <th>Created</th>
-              <th>Created By</th>
-              <th>Updated</th>
-              <th>Updated By</th>
-
-              <!-- Action Buttons -->
               <th>Actions</th>
-              
             </tr>
           </thead>
-          <tbody style="font-size: 0.8rem;">
-            {% for equipment in equipments %}
-            <tr>
-              <!-- Procurement Details -->
-              <td class="text-center">
-                {% if equipment.user_image %}
-                  <img src="{{ equipment.user_image.url }}" class="img-thumbnail" style="width: 32px; height: 32px; object-fit: cover; padding: 1px;">
-                {% else %}
-                  <span class="text-muted small">No Image</span>
-                {% endif %}
-              </td>
-              <td>{{ equipment.item_propertynum }}</td>
-              <td>{{ equipment.item_name }}</td>
-              <td class="d-none d-md-table-cell">{{ equipment.item_desc }}</td>
-              <td class="d-none d-md-table-cell">{{ equipment.additional_info }}</td>
-
-
-              <td>{{ equipment.po_number }}</td>
-              <td>{{ equipment.fund_source }}</td>
-              <td>{{ equipment.supplier }}</td>
-              <td class="text-start">₱{{ equipment.item_amount|floatformat:2|intcomma }}</td>
-              <td>{{ equipment.item_purdate|date:"M d, Y" }}</td>
-
-              <!-- Assignment -->
-              <td>{{ equipment.project_name }}</td>
-              <td>{{ equipment.assigned_to }}</td>
-              <td>{{ equipment.end_user }}</td>
-
-
-              <!-- Location Context -->
-              <td>{{ equipment.location }}</td>
-              <td>{{ equipment.current_location }}</td>
-
-              <!-- Classification -->
-              <td>{{ equipment.category.name }}</td>
-              <td>
-                <span class="badge bg-info text-dark small">{{ equipment.status.name }}</span>
-              </td>
-
-              <!-- Timestamps -->
-              <td>{{ equipment.created_at|date:"M d, Y" }}</td>
-              <td>
-                {% if equipment.created_by %}
-                  {{ equipment.created_by.first_name }} {{ equipment.created_by.last_name }}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              <td>{{ equipment.updated_at|date:"M d, Y" }}</td>
-              <td>
-                {% if equipment.updated_by %}
-                  {{ equipment.updated_by.first_name }} {{ equipment.updated_by.last_name }}
-                {% else %}
-                  -
-                {% endif %}
-              </td>
-              
-              <!-- Action Buttons -->
-              <td class="text-center">
-                <div class="btn-group btn-group-sm">
-                  <a href="{% url 'equipments:edit' equipment.id %}" class="btn btn-outline-warning" title="Edit">
-                    <i class="bi bi-pencil-square small"></i>
-                  </a>
-                  {% if is_admin %}
-                  <a href="{% url 'equipments:delete' equipment.id %}" class="btn btn-outline-danger" title="Delete" onclick="return confirm('Are you sure?');">
-                    <i class="bi bi-trash small"></i>
-                  </a>
-                  {% endif %}
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-
+          <tbody></tbody>
         </table>
       </div>
     </div>
   </div>
 </div>
 
+<!-- Place this at the end of your file, outside any <table> or <form> -->
+<div class="modal fade" id="returnModal" tabindex="-1" aria-labelledby="returnModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="returnForm" method="post" enctype="multipart/form-data" action="{% url 'equipments:return_equipment' %}">
+      {% csrf_token %}
+      <input type="hidden" name="equipment_id" id="returnEquipmentId">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="returnModalLabel">Return Equipment</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="returnDocument" class="form-label">Upload Return Document</label>
+            <input type="file" class="form-control" id="returnDocument" name="return_document" accept=".pdf,image/*" required>
+          </div>
+          <div class="mb-3">
+            <label for="returnRemarks" class="form-label">Remarks</label>
+            <textarea class="form-control" id="returnRemarks" name="return_remarks" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="returnCondition" class="form-label">Condition Upon Return</label>
+            <select class="form-select" id="returnCondition" name="return_condition">
+              <option value="">Select condition</option>
+              <option value="Good">Good</option>
+              <option value="Needs Repair">Needs Repair</option>
+              <option value="Damaged">Damaged</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="returnType" class="form-label">Return Type</label>
+            <select class="form-select" id="returnType" name="return_type">
+              <option value="">Select type</option>
+              <option value="Return">Return</option>
+              <option value="Retirement">Retirement</option>
+              <option value="Disposal">Disposal</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Submit Return</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Equipment Details Modal -->
+<div class="modal fade" id="equipmentModal" tabindex="-1" aria-labelledby="equipmentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-semibold" id="equipmentModalLabel">📄 Equipment Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-1 px-3" style="max-height: 75vh; overflow-y: auto;">
+        <div class="row mb-3">
+          <div class="col-md-4 text-center">
+            <img id="modalImage" src="" class="img-fluid rounded shadow-sm" style="width: 120px; height: 120px; object-fit: cover;" alt="Equipment Image">
+          </div>
+          <div class="col-md-8">
+            <div class="row g-2">
+              <div class="col-sm-6"><small class="text-muted">Property #</small><div id="modalPropertyNum" class="fw-medium"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Name</small><div id="modalName" class="fw-medium"></div></div>
+              <div class="col-sm-12"><small class="text-muted">Description</small><div id="modalDesc" class="fw-normal text-wrap"></div></div>
+              <div class="col-sm-12"><small class="text-muted">Additional Info</small><div id="modalAddInfo" class="text-muted"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Amount</small><div id="modalAmount" class="fw-medium text-success"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Category</small><div id="modalCategory"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Status</small><div id="modalStatus"></div></div>
+              <div class="col-sm-6"><small class="text-muted">PO Number</small><div id="modalPONumber"></div></div>
+              <div class="col-sm-6"><small class="text-muted">PO Date</small><div id="modalPODate"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Fund Source</small><div id="modalFundSource"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Supplier</small><div id="modalSupplier"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Project Name</small><div id="modalProjectName"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Assigned To</small><div id="modalAssignedTo"></div></div>
+              <div class="col-sm-6"><small class="text-muted">End User</small><div id="modalEndUser"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Deployment Location</small><div id="modalLocation"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Current Location</small><div id="modalCurrentLocation"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Created</small><div id="modalCreated"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Created By</small><div id="modalCreatedBy"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Updated</small><div id="modalUpdated"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Updated By</small><div id="modalUpdatedBy"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-labelledby="advancedFilterLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="advancedFilterLabel">Advanced Filter</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="filterForm">
+          <div id="filterContainer"></div>
+          <button type="button" class="btn btn-sm btn-outline-secondary mt-2" id="addFilterRow">+ Add Filter</button>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="applyFilter" class="btn btn-primary btn-sm">Apply Filters</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
 <!-- Compact Table Style -->
 <style>
-.compact-table th,
-.compact-table td {
-  padding: 0.25rem 0.4rem !important;
-  vertical-align: middle;
-  font-size: 0.8rem;
+  .compact-table td, .compact-table th {
+    white-space: nowrap;          /* Prevents breaking mid-word */
+    overflow: hidden;
+    text-overflow: ellipsis;      /* Shows "..." if too long */
+    max-width: 160px;
+
+  }
+    /* Allow wrapping for selected columns */
+  .compact-table td.text-wrap,
+  .compact-table th.text-wrap {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  #tableSearch {
+    min-width: 250px;
+    max-width: 400px;
+    padding-left: 1.5rem;
+    border: 1px solid #ced4da;
+    transition: box-shadow 0.2s ease-in-out;
+    font-size: 0.8rem;
+  }
+
+  #tableSearch:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    border-color: #80bdff;
+  }
+
+  select.form-select-sm, .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+  
+    /* Make pagination text and buttons smaller */
+  .dataTables_paginate .pagination {
+    font-size: 0.75rem;       /* Smaller text */
+    gap: 0.25rem;              /* Less spacing between buttons */
+  }
+
+  .dataTables_paginate .page-link {
+    padding: 0.25rem 0.5rem;   /* Smaller button padding */
+    font-size: 0.75rem;        /* Smaller font size inside buttons */
+  }
+
+  .dataTables_wrapper .dataTables_paginate {
+    margin-top: 0.5rem;
+  }
+
+    #equipmentModal .modal-body div {
+    font-size: 0.88rem;
+  }
+  #equipmentModal .fw-medium {
+    font-weight: 500;
+  }
+
+    @media (max-width: 768px) {
+  .table-responsive {
+    overflow-x: auto;
+  }
+
+  .compact-table td, .compact-table th {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.4rem;
+  }
 }
 </style>
 
@@ -205,19 +303,215 @@
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
 <script>
-  $(document).ready(function () {
-    const table = $('#equipmentTable').DataTable({
-      paging: true,
-      ordering: true,
-      info: true,
-      lengthChange: false,
-      searching: true,
-      dom: 'lrtip'
+let table;
+$(document).ready(function () {
+
+  const columnMap = {
+  2: 'Property #',
+  3: 'Name',
+  4: 'Description',
+  5: 'Amount',
+  6: 'Category',
+  7: 'Status'
+};
+
+  // Init DataTable
+table = $('#equipmentTable').DataTable({
+  dom: 'lrtip',
+  serverSide: true,
+  processing: true,
+  ajax: {
+    url: '/equipments/equipment/table/json/',
+    type: 'GET',
+    data: function (d) {
+      // Gather all filters
+      $('.filter-row').each(function () {
+        const colIdx = $(this).find('.column-select').val();
+        const value = $(this).find('.value-input').val();
+        d['filter_col_' + colIdx] = value;
+      });
+    }
+  },
+  columns: [
+    {
+      data: null,
+      orderable: false,
+      render: function (data, type, row) {
+        return `<input type="checkbox" class="equipment-checkbox" value="${row[1]}">`; // row[1] is the ID now
+      }
+    },
+    { visible: false }, // 1: ID (hidden)
+    { title: "Image", orderable: false }, // 2
+    { title: "Property #" },              // 3
+    { title: "Name" },                    // 4
+    { title: "Description" },             // 5
+    { title: "Amount" },                  // 6
+    { title: "Category" },                // 7
+    { title: "Status" },                  // 8
+    { title: "Actions", orderable: false } // 9
+  ],
+  pageLength: 10
+});
+
+  // Custom global search
+  $('#tableSearch').on('keyup', function () {
+    table.search(this.value).draw();
+  });
+
+  // Add filter row
+  $('#addFilterRow').click(function () {
+    const idx = $('.filter-row').length;
+    const selectOptions = Object.entries(columnMap).map(
+      ([i, name]) => `<option value="${i}">${name}</option>`
+    ).join('');
+
+    $('#filterContainer').append(`
+      <div class="row mb-2 filter-row" data-idx="${idx}">
+        <div class="col-md-5">
+          <select class="form-select form-select-sm column-select">${selectOptions}</select>
+        </div>
+        <div class="col-md-5 value-col">
+          <input type="text" class="form-control form-control-sm value-input" placeholder="Enter value">
+        </div>
+        <div class="col-md-2 text-end">
+          <button type="button" class="btn btn-sm btn-outline-danger remove-filter">&times;</button>
+        </div>
+      </div>
+    `);
+  });
+
+    $(document).on('change', '.column-select', function () {
+    const colIdx = $(this).val();
+    const $valueCol = $(this).closest('.filter-row').find('.value-col');
+    if (colIdx == '6') {
+      // Category
+      $valueCol.html(`<select class="form-select form-select-sm value-input">
+        <option value="">All</option>
+        {% for cat in categories %}
+          <option value="{{ cat.name }}">{{ cat.name }}</option>
+        {% endfor %}
+      </select>`);
+    } else if (colIdx == '7') {
+      // Status
+      $valueCol.html(`<select class="form-select form-select-sm value-input">
+        <option value="">All</option>
+        {% for stat in statuses %}
+          <option value="{{ stat.name }}">{{ stat.name }}</option>
+        {% endfor %}
+      </select>`);
+    } else {
+      // Default to text input
+      $valueCol.html('<input type="text" class="form-control form-control-sm value-input" placeholder="Enter value">');
+    }
+  });
+  // Remove filter row
+  $(document).on('click', '.remove-filter', function () {
+    $(this).closest('.filter-row').remove();
+  });
+
+  // Apply filters
+  $('#applyFilter').click(function () {
+    // 1. Gather filtered column indices
+    let filteredCols = [];
+    $('.filter-row').each(function () {
+      const colIdx = parseInt($(this).find('.column-select').val());
+      if (!isNaN(colIdx)) filteredCols.push(colIdx);
     });
 
-    $('#tableSearch').on('keyup', function () {
-      table.search(this.value).draw();
+    // 2. Always show the hidden ID, Image, and Actions columns
+    const alwaysVisible = [0, 1, 9]; // 0: hidden ID, 1: Image, 8: Actions (adjust if needed)
+    let showCols = alwaysVisible.concat(filteredCols);
+
+    // 3. Loop through all columns and set visibility
+    table.columns().every(function (idx) {
+      if (showCols.includes(idx)) {
+        this.visible(true);
+      } else {
+        this.visible(false);
+      }
+    });
+
+    // 4. Reload data
+    table.ajax.reload();
+    $('#advancedFilterModal').modal('hide');
+    var equipmentId = data[1];
+  });
+
+$('#equipmentTable tbody').on('click', 'tr', function (e) {
+  // Prevent modal if clicking on a button, link, or inside the Actions column
+  if (
+    $(e.target).closest('button').length ||
+    $(e.target).closest('a').length ||
+    $(e.target).closest('td').index() === 9 // Actions column index (adjust if needed)
+  ) {
+    return;
+  }
+
+  var table = $('#equipmentTable').DataTable();
+  var data = table.row(this).data();
+  var equipmentId = data[1]; // This is the hidden ID column, always present in the data array
+
+  // Now fetch and show the modal as before
+  $.get(`/equipments/equipment/${equipmentId}/json/`, function(data) {
+    $('#modalImage').attr('src', data.image);
+    $('#modalPropertyNum').text(data.propertynum);
+    $('#modalName').text(data.name);
+    $('#modalDesc').text(data.desc);
+    $('#modalAddInfo').text(data.addinfo);
+    $('#modalAmount').text('₱' + data.amount);
+    $('#modalCategory').text(data.category);
+    $('#modalStatus').text(data.status);
+    $('#modalPONumber').text(data.po_number);
+    $('#modalPODate').text(data.po_date);
+    $('#modalFundSource').text(data.fund_source);
+    $('#modalSupplier').text(data.supplier);
+    $('#modalProjectName').text(data.project_name);
+    $('#modalAssignedTo').text(data.assigned_to);
+    $('#modalEndUser').text(data.end_user);
+    $('#modalLocation').text(data.location);
+    $('#modalCurrentLocation').text(data.current_location);
+    $('#modalCreated').text(data.created);
+    $('#modalCreatedBy').text(data.created_by);
+    $('#modalUpdated').text(data.updated);
+    $('#modalUpdatedBy').text(data.updated_by);
+    $('#equipmentModal').modal('show');
+  });
+});
+
+  $('#selectAll').on('click', function () {
+    $('.equipment-checkbox').prop('checked', this.checked);
+  });
+  
+  $('#bulkUpdateForm').on('submit', function (e) {
+    e.preventDefault();
+    const selectedIds = $('.equipment-checkbox:checked')
+      .map((_, cb) => cb.value)
+      .get();
+
+    if (selectedIds.length === 0) {
+      alert("Please select at least one equipment.");
+      return;
+    }
+
+    const formData = $(this).serializeArray();
+    formData.push({ name: 'equipment_ids', value: selectedIds.join(',') });
+
+    $.post($(this).attr('action'), formData, function (response) {
+      alert("Bulk update successful.");
+      table.ajax.reload(); // Refresh table
+    }).fail(function () {
+      alert("Something went wrong.");
     });
   });
+  
+
+  $('#returnModal').on('show.bs.modal', function (event) {
+  $('.modal').not(this).modal('hide');
+  var button = $(event.relatedTarget);
+  var eqId = button.data('eqid');
+  $('#returnEquipmentId').val(eqId);
+});
+  
+});
 </script>
 {% endblock %}
