@@ -41,9 +41,12 @@ def equipment_table_json(request):
     length = int(request.GET.get('length', 10))
     search_value = request.GET.get('search[value]', '')
 
-    qs = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp')
+    # Initial queryset
+    qs = Equipment.objects.filter(is_returned=False, is_archived=False).select_related('category', 'status', 'emp')
 
-    # Handle global search
+
+
+    # Global search
     if search_value:
         qs = qs.filter(
             Q(item_propertynum__icontains=search_value) |
@@ -52,11 +55,11 @@ def equipment_table_json(request):
             Q(category__name__icontains=search_value) |
             Q(status__name__icontains=search_value)
         )
-    # Handle advanced filters
+
+    # Advanced filters
     for key, value in request.GET.items():
         if key.startswith('filter_col_') and value:
             col_idx = key.replace('filter_col_', '')
-            # Map col_idx to field name
             if col_idx == '2':  # Property #
                 qs = qs.filter(item_propertynum__icontains=value)
             elif col_idx == '3':  # Name
@@ -70,14 +73,30 @@ def equipment_table_json(request):
             elif col_idx == '7':  # Status
                 qs = qs.filter(status__name=value)
 
+    # Sorting
+    order_col = request.GET.get('order[0][column]', '1')
+    order_dir = request.GET.get('order[0][dir]', 'desc')
+
+    col_map = {
+        '1': 'id',
+        '3': 'item_propertynum',
+        '4': 'item_name',
+        '5': 'item_desc',
+        '6': 'po_number',
+        '7': 'item_amount',
+        '8': 'end_user',
+        '9': 'category__name',
+        '10': 'status__name',
+    }
+
+    order_field = col_map.get(order_col, 'id')
+    if order_dir == 'desc':
+        order_field = '-' + order_field
+
     total = Equipment.objects.filter(is_returned=False).count()
     filtered = qs.count()
-    equipments = qs.order_by('-item_purdate')[start:start+length]
 
-
-    total = Equipment.objects.filter(is_returned=False).count()
-    filtered = qs.count()
-    equipments = qs.order_by('-item_purdate')[start:start+length]
+    equipments = qs.order_by(order_field)[start:start + length]
 
     data = []
     for eq in equipments:
@@ -97,23 +116,29 @@ def equipment_table_json(request):
                 <i class="bi bi-trash"></i> Delete
             </a>
             </li>
+            <li>
+            <a class="dropdown-item" href="/equipments/archive/{eq.id}/" onclick="return confirm('Archive this equipment?');">
+                <i class="bi bi-archive"></i> Archive
+            </a>
+            </li>
             {f'''
             <li>
             <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
-            <i class="bi bi-arrow-90deg-left"></i> Return
+                <i class="bi bi-arrow-90deg-left"></i> Return
             </button>
             </li>
             ''' if not eq.is_returned else ''}
         </ul>
         </div>
         '''
+
         data.append([
-            '',  # 0: Placeholder for checkbox
+            '',  # 0: Checkbox placeholder
             eq.id,  # 1: hidden ID
             f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',
             eq.item_propertynum,
             eq.item_name,
-            eq.item_desc if eq.item_desc is not None else 'None',
+            eq.item_desc if eq.item_desc else 'None',
             eq.po_number if eq.po_number else 'None',
             f'₱{eq.item_amount:,.2f}',
             eq.end_user if eq.end_user else 'None',
@@ -122,13 +147,13 @@ def equipment_table_json(request):
             actions
         ])
 
-
     return JsonResponse({
         'draw': draw,
         'recordsTotal': total,
         'recordsFiltered': filtered,
         'data': data,
     })
+
 
 @login_required
 def equipment_detail_json(request, pk):
@@ -239,6 +264,7 @@ def processaddequipment(request):
         category_id = request.POST.get('category_id')
         status_id = request.POST.get('status_id')
         user_image = request.FILES.get('user_image', 'equipment_pic/image.jpg')
+        order_receipt = request.FILES.get('order_receipt', None)
 
         # Field validations (keep as is)
         # ...existing validation code...
@@ -276,7 +302,8 @@ def processaddequipment(request):
                 category_id=category_id,
                 status_id=status_id,
                 created_by=request.user,
-                updated_by=request.user
+                updated_by=request.user,
+                order_receipt=order_receipt 
             )
             equipment.save()
             return HttpResponseRedirect('/equipments/')
@@ -632,6 +659,51 @@ def returned(request):
     return render(request, 'equipments/returned.html', {'equipments': equipments})
 
 
+@login_required
+def returned_equipment_table_json(request):
+    draw = int(request.GET.get('draw', 1))
+    start = int(request.GET.get('start', 0))
+    length = int(request.GET.get('length', 10))
+    search_value = request.GET.get('search[value]', '')
+
+    qs = Equipment.objects.filter(is_returned=True).select_related('category', 'status', 'emp')
+
+    if search_value:
+        qs = qs.filter(
+            Q(item_propertynum__icontains=search_value) |
+            Q(item_name__icontains=search_value) |
+            Q(item_desc__icontains=search_value)
+        )
+
+    total = Equipment.objects.filter(is_returned=True).count()
+    filtered = qs.count()
+    equipments = qs.order_by('-updated_at')[start:start+length]
+
+    data = []
+    for eq in equipments:
+        data.append([
+            '',  # checkbox placeholder
+            eq.id,
+            f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
+            eq.item_propertynum,
+            eq.item_name,
+            eq.item_desc or 'None',
+            eq.returned_by or 'None',
+            f'<a href="{eq.return_document.url}" target="_blank">View</a>' if eq.return_document else 'None',
+            eq.updated_at.strftime("%b %d, %Y") if eq.updated_at else 'None',
+            eq.return_remarks or 'None',
+            eq.return_condition or 'None',
+            eq.return_type or 'None',
+            eq.received_by or 'None'
+        ])
+
+    return JsonResponse({
+        'draw': draw,
+        'recordsTotal': total,
+        'recordsFiltered': filtered,
+        'data': data,
+    })
+
 @require_POST
 @login_required
 def return_equipment(request):
@@ -640,6 +712,8 @@ def return_equipment(request):
     remarks = request.POST.get('return_remarks')
     condition = request.POST.get('return_condition')
     return_type = request.POST.get('return_type')
+    returned_by = request.POST.get('returned_by') 
+    received_by = request.POST.get('received_by')
     if not eq_id or not file:
         messages.error(request, "Equipment and document are required.")
         return redirect('equipments:index')
@@ -649,7 +723,77 @@ def return_equipment(request):
     eq.return_remarks = remarks
     eq.return_condition = condition
     eq.return_type = return_type
-    eq.received_by = request.user
+    eq.returned_by = returned_by
+    eq.received_by = received_by
     eq.save()
     messages.success(request, "Equipment marked as returned.")
     return redirect('equipments:index')
+
+@login_required
+def archived_equipments(request):
+    return render(request, 'equipments/archived_list.html')
+
+
+@login_required
+def archive_equipment(request, pk):
+    equipment = get_object_or_404(Equipment, pk=pk)
+    equipment.is_archived = True
+    equipment.save()
+    messages.success(request, "Equipment sent to archive.")
+    return redirect('equipments:index')  # or wherever your DataTable is loaded
+
+@login_required
+def archived_equipment_table_json(request):
+    draw = int(request.GET.get('draw', 1))
+    start = int(request.GET.get('start', 0))
+    length = int(request.GET.get('length', 10))
+    search_value = request.GET.get('search[value]', '')
+
+    qs = Equipment.objects.filter(is_archived=True).select_related('category', 'status', 'emp')
+
+    if search_value:
+        qs = qs.filter(
+            Q(item_propertynum__icontains=search_value) |
+            Q(item_name__icontains=search_value) |
+            Q(item_desc__icontains=search_value)
+        )
+
+    total = Equipment.objects.filter(is_archived=True).count()
+    filtered = qs.count()
+    equipments = qs.order_by('-item_purdate')[start:start+length]
+
+    data = []
+    for eq in equipments:
+        data.append([
+            '',  # checkbox placeholder
+            eq.id,
+            f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
+            eq.item_propertynum,
+            eq.item_name,
+            eq.item_desc or 'None',
+            eq.po_number or 'None',
+            f'₱{eq.item_amount:,.2f}',
+            eq.end_user or 'None',
+            eq.category.name,
+            eq.status.name,
+            f'''
+            <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
+              <i class="bi bi-arrow-counterclockwise"></i> Unarchive
+            </a>
+            '''
+        ])
+
+    return JsonResponse({
+        'draw': draw,
+        'recordsTotal': total,
+        'recordsFiltered': filtered,
+        'data': data,
+    })
+
+@login_required
+def unarchive_equipment(request, pk):
+    eq = get_object_or_404(Equipment, pk=pk)
+    eq.is_archived = False
+    eq.save()
+    return redirect('equipments:archived_equipments')
+

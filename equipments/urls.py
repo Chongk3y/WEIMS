@@ -29,6 +29,14 @@ urlpatterns = [
     path('bulk-update/', views.bulk_update_equipment, name='bulk_update'),
     path('returned/', views.returned, name='returned'),
     path('return-equipment/', views.return_equipment, name='return_equipment'),
+    path('returned/json/', views.returned_equipment_table_json, name='returned_equipment_table_json'),
+    path('archive/<int:pk>/', views.archive_equipment, name='archive_equipment'),
+    path('archived/', views.archived_equipments, name='archived_equipments'),
+    path('archived/json/', views.archived_equipment_table_json, name='archived_equipment_table_json'),
+    path('unarchive/<int:pk>/', views.unarchive_equipment, name='unarchive_equipment'),
+
+
+
     
 ] + static(settings.MEDIA_URL, 
     document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, 

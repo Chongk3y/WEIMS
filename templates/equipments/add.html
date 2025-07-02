@@ -71,6 +71,11 @@
             <input type="date" name="item_purdate" class="form-control form-control-sm" value="{{ values.item_purdate|default_if_none:'' }}">
           </div>
 
+          <div class="mb-3">
+            <label for="orderReceipt" class="form-label">Order Receipt (optional)</label>
+            <input type="file" class="form-control" id="orderReceipt" name="order_receipt" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
+          </div>
+
           <!-- 📍 Project & Assignment -->
           <div class="col-12 small fw-bold text-secondary mt-2">📍 Project & Assignment</div>
 

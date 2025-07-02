@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.utils.html import mark_safe
 from django.conf import settings
 from django.utils import timezone
+from django import forms
 
 now = datetime.now
 
@@ -94,13 +95,15 @@ class Equipment(models.Model):
         blank=True,
         verbose_name="Updated By"
     )
-
+    order_receipt = models.FileField(upload_to='receipts/', null=True, blank=True)
+    is_archived = models.BooleanField(default=False)
     is_returned = models.BooleanField(default=False)
     return_document = models.FileField(upload_to='return_docs/', null=True, blank=True, verbose_name="Return Document")
     return_remarks = models.TextField(blank=True, null=True, verbose_name="Return Remarks")
     return_condition = models.CharField(max_length=50, blank=True, null=True, verbose_name="Condition Upon Return")
     return_type = models.CharField(max_length=30, blank=True, null=True, verbose_name="Return Type")
-    received_by = models.ForeignKey(User, null=True, blank=True, related_name='received_equipments', on_delete=models.SET_NULL)
+    returned_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Returned By")
+    received_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Received By")
 
     class Meta: 
         verbose_name = "Equipment"
@@ -112,6 +115,10 @@ class Equipment(models.Model):
     def image_tag(self):
         return mark_safe('<img src="/equipments/media/%s" width="50" height="50" />' % self.user_image)   
     
+class EquipmentForm(forms.ModelForm):
+    class Meta:
+        model = Equipment
+        fields = '__all__'  # Or explicitly list your fields
     
     
 
