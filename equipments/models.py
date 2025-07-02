@@ -96,7 +96,6 @@ class Equipment(models.Model):
         verbose_name="Updated By"
     )
     order_receipt = models.FileField(upload_to='receipts/', null=True, blank=True)
-    is_archived = models.BooleanField(default=False)
     is_returned = models.BooleanField(default=False)
     return_document = models.FileField(upload_to='return_docs/', null=True, blank=True, verbose_name="Return Document")
     return_remarks = models.TextField(blank=True, null=True, verbose_name="Return Remarks")
@@ -104,6 +103,15 @@ class Equipment(models.Model):
     return_type = models.CharField(max_length=30, blank=True, null=True, verbose_name="Return Type")
     returned_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Returned By")
     received_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Received By")
+    is_archived = models.BooleanField(default=False)
+    date_archived = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        related_name='archived_equipments',
+        on_delete=models.SET_NULL
+    )
 
     class Meta: 
         verbose_name = "Equipment"

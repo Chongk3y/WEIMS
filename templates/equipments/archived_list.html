@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container mt-4">
-  <h5 class="fw-semibold mb-0">Archived Equipment</h5>
+  <h5 class="fw-semibold mb-0">Recently Deleted Equipment</h5>
   <div class="card shadow-sm border-0">
     <div class="card-body p-2">
       <div class="table-responsive">
@@ -20,6 +20,8 @@
               <th>End User</th>
               <th>Category</th>
               <th>Status</th>
+              <th>Date Deleted</th>
+              <th>Deleted By</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -52,7 +54,9 @@ $(document).ready(function () {
       { title: "End User"},                        // 8
       { title: "Category"},                        // 9
       { title: "Status"},                          // 10
-      { title: "Actions", orderable: false }       // 11
+      { title: "Date Archived"},                   // 11
+      { title: "Archived By"},                     // 12
+      { title: "Actions", orderable: false }       // 13
     ]
   });
 });

@@ -14,6 +14,8 @@ import csv
 import openpyxl
 from datetime import datetime
 from django.views.decorators.http import require_POST
+from django.utils import timezone
+
 
 
 def is_admin(user):
@@ -25,13 +27,12 @@ def is_encoder(user):
 def is_client(user):
     return user.groups.filter(name='Client').exists()
 
-def is_admin_or_encoder(user):
-    return user.groups.filter(name__in=['Admin', 'Encoder']).exists()
+def is_admin_or_superadmin(user):
+    return user.is_superuser or user.groups.filter(name='Admin').exists()
 
 def is_admin_superadmin_encoder(user):
-    return (
-        user.groups.filter(name__in=["Admin", "Superadmin", "Encoder"]).exists()
-    )
+    return user.is_superuser or user.groups.filter(name__in=['Admin', 'Encoder']).exists()
+
 
 
 @login_required
@@ -187,7 +188,7 @@ def equipment_detail_json(request, pk):
     return JsonResponse(data)
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def index(request):
     equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
     categories = Category.objects.all()
@@ -229,7 +230,7 @@ def index(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def add_equipment(request):
     users = User.objects.all()
     categories = Category.objects.all()
@@ -245,7 +246,7 @@ def add_equipment(request):
     })
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def processaddequipment(request):
     errors = {}
     values = request.POST
@@ -309,7 +310,7 @@ def processaddequipment(request):
             return HttpResponseRedirect('/equipments/')
       
 @login_required 
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def edit_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
     categories = Category.objects.all()
@@ -358,7 +359,7 @@ def edit_equipment(request, id):
     })
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(is_admin_or_superadmin)
 def delete_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
     equipment.delete()
@@ -583,7 +584,7 @@ def export_csv(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def import_excel(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
@@ -631,7 +632,6 @@ def parse_date(val):
     except Exception:
         return None  # or raise
 
-
 @require_POST
 @login_required
 def bulk_update_equipment(request):
@@ -651,7 +651,6 @@ def bulk_update_equipment(request):
     if updates:
         qs.update(**updates)
     return JsonResponse({'success': True})
-
 
 @login_required
 def returned(request):
@@ -733,14 +732,15 @@ def return_equipment(request):
 def archived_equipments(request):
     return render(request, 'equipments/archived_list.html')
 
-
 @login_required
 def archive_equipment(request, pk):
     equipment = get_object_or_404(Equipment, pk=pk)
     equipment.is_archived = True
+    equipment.date_archived = timezone.now()
+    equipment.archived_by = request.user
     equipment.save()
     messages.success(request, "Equipment sent to archive.")
-    return redirect('equipments:index')  # or wherever your DataTable is loaded
+    return redirect('equipments:index')
 
 @login_required
 def archived_equipment_table_json(request):
@@ -775,10 +775,12 @@ def archived_equipment_table_json(request):
             f'₱{eq.item_amount:,.2f}',
             eq.end_user or 'None',
             eq.category.name,
-            eq.status.name,
+            f'{eq.status.name} {"<span class=\'badge bg-secondary ms-1\'>Deleted</span>" if eq.is_archived else ""}',
+            timezone.localtime(eq.date_archived).strftime('%Y-%m-%d %H:%M') if eq.date_archived else 'None',
+            f'{eq.archived_by.get_full_name() if eq.archived_by else "None"}',
             f'''
             <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
-              <i class="bi bi-arrow-counterclockwise"></i> Unarchive
+              <i class="bi bi-arrow-counterclockwise"></i> Recover
             </a>
             '''
         ])
