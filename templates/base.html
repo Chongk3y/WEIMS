@@ -18,7 +18,7 @@
     {% block custom_css %}{% endblock %}
   </head>
 
-  <body>
+<body class="d-flex flex-column min-vh-100">
     <div class="wrapper d-flex min-vh-100"> <!-- ✅ SINGLE wrapper -->
       {% block sidebar %}
         {% include 'partials/sidebar.html' %}
@@ -26,13 +26,13 @@
 
       <div class="flex-grow-1">
         {% block header %}{% endblock %}
-        <main class="p-4">
-          {% block content %}{% endblock %}
-        </main>
+      <main class="flex-grow-1 overflow-auto" id="content-area">
+        {% block content %}{% endblock %}
+      </main>
       </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-
+    
   </body>
 </html>

@@ -54,10 +54,10 @@ class Equipment(models.Model):
     item_propertynum = models.CharField(max_length=50, verbose_name="Property Number")
     item_name = models.CharField(max_length=50, verbose_name="Item Name")
     item_desc = models.CharField(max_length=50, blank=True, null=True, verbose_name="Item Description")
-    additional_info = models.CharField(max_length=1000, verbose_name="Additional Info")
+    additional_info = models.CharField(max_length=1000, blank=True, null=True, verbose_name="Additional Info")
 
     item_purdate = models.DateField(blank=True, null=True, verbose_name="Purchase Date")
-    po_number = models.CharField(max_length=50, verbose_name="PO Number")
+    po_number = models.CharField(max_length=50, blank=True, null=True, verbose_name="PO Number")
     fund_source = models.CharField(max_length=100, blank=True, null=True, verbose_name="Fund Source")
     supplier = models.CharField(max_length=100, blank=True, null=True, verbose_name="Supplier")
 
@@ -65,9 +65,9 @@ class Equipment(models.Model):
 
     project_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="Project Name")
     assigned_to = models.CharField(max_length=100, blank=True, null=True, verbose_name="Assigned To")
-    end_user = models.CharField(max_length=100, verbose_name="End User")
+    end_user = models.CharField(max_length=100, blank=True, null=True, verbose_name="End User")
 
-    location = models.CharField(max_length=100, verbose_name="Location")
+    location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Location")
     current_location = models.CharField(max_length=100, blank=True, null=True, verbose_name="Current Location")
 
     category = models.ForeignKey(Category, on_delete=models.CASCADE, verbose_name="Category", default=1)
@@ -94,6 +94,13 @@ class Equipment(models.Model):
         blank=True,
         verbose_name="Updated By"
     )
+
+    is_returned = models.BooleanField(default=False)
+    return_document = models.FileField(upload_to='return_docs/', null=True, blank=True, verbose_name="Return Document")
+    return_remarks = models.TextField(blank=True, null=True, verbose_name="Return Remarks")
+    return_condition = models.CharField(max_length=50, blank=True, null=True, verbose_name="Condition Upon Return")
+    return_type = models.CharField(max_length=30, blank=True, null=True, verbose_name="Return Type")
+    received_by = models.ForeignKey(User, null=True, blank=True, related_name='received_equipments', on_delete=models.SET_NULL)
 
     class Meta: 
         verbose_name = "Equipment"

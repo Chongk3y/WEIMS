@@ -1,7 +1,8 @@
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.csrf import csrf_exempt
 from .models import Equipment, Category, Status
 from django.shortcuts import redirect, render, get_object_or_404
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.models import User, Group
 from django.db.models import Count
@@ -12,6 +13,7 @@ from django.core.paginator import Paginator
 import csv
 import openpyxl
 from datetime import datetime
+from django.views.decorators.http import require_POST
 
 
 def is_admin(user):
@@ -23,8 +25,6 @@ def is_encoder(user):
 def is_client(user):
     return user.groups.filter(name='Client').exists()
 
-
-
 def is_admin_or_encoder(user):
     return user.groups.filter(name__in=['Admin', 'Encoder']).exists()
 
@@ -35,12 +35,138 @@ def is_admin_superadmin_encoder(user):
 
 
 @login_required
+def equipment_table_json(request):
+    draw = int(request.GET.get('draw', 1))
+    start = int(request.GET.get('start', 0))
+    length = int(request.GET.get('length', 10))
+    search_value = request.GET.get('search[value]', '')
+
+    qs = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp')
+
+    # Handle global search
+    if search_value:
+        qs = qs.filter(
+            Q(item_propertynum__icontains=search_value) |
+            Q(item_name__icontains=search_value) |
+            Q(item_desc__icontains=search_value) |
+            Q(category__name__icontains=search_value) |
+            Q(status__name__icontains=search_value)
+        )
+    # Handle advanced filters
+    for key, value in request.GET.items():
+        if key.startswith('filter_col_') and value:
+            col_idx = key.replace('filter_col_', '')
+            # Map col_idx to field name
+            if col_idx == '2':  # Property #
+                qs = qs.filter(item_propertynum__icontains=value)
+            elif col_idx == '3':  # Name
+                qs = qs.filter(item_name__icontains=value)
+            elif col_idx == '4':  # Description
+                qs = qs.filter(item_desc__icontains=value)
+            elif col_idx == '5':  # Amount
+                qs = qs.filter(item_amount__icontains=value)
+            elif col_idx == '6':  # Category
+                qs = qs.filter(category__name=value)
+            elif col_idx == '7':  # Status
+                qs = qs.filter(status__name=value)
+
+    total = Equipment.objects.filter(is_returned=False).count()
+    filtered = qs.count()
+    equipments = qs.order_by('-item_purdate')[start:start+length]
+
+
+    total = Equipment.objects.filter(is_returned=False).count()
+    filtered = qs.count()
+    equipments = qs.order_by('-item_purdate')[start:start+length]
+
+    data = []
+    for eq in equipments:
+        actions = f'''
+        <div class="dropdown" data-bs-auto-close="outside">
+        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Actions
+        </button>
+        <ul class="dropdown-menu">
+            <li>
+            <a class="dropdown-item" href="/equipments/edit/{eq.id}/">
+                <i class="bi bi-pencil-square"></i> Edit
+            </a>
+            </li>
+            <li>
+            <a class="dropdown-item" href="/equipments/delete/{eq.id}/" onclick="return confirm('Are you sure?');">
+                <i class="bi bi-trash"></i> Delete
+            </a>
+            </li>
+            {f'''
+            <li>
+            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
+            <i class="bi bi-arrow-90deg-left"></i> Return
+            </button>
+            </li>
+            ''' if not eq.is_returned else ''}
+        </ul>
+        </div>
+        '''
+        data.append([
+            '',  # 0: Placeholder for checkbox
+            eq.id,  # 1: hidden ID
+            f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',
+            eq.item_propertynum,
+            eq.item_name,
+            eq.item_desc if eq.item_desc is not None else 'None',
+            eq.po_number if eq.po_number else 'None',
+            f'₱{eq.item_amount:,.2f}',
+            eq.end_user if eq.end_user else 'None',
+            eq.category.name,
+            eq.status.name,
+            actions
+        ])
+
+
+    return JsonResponse({
+        'draw': draw,
+        'recordsTotal': total,
+        'recordsFiltered': filtered,
+        'data': data,
+    })
+
+@login_required
+def equipment_detail_json(request, pk):
+    try:
+        eq = Equipment.objects.select_related('category', 'status', 'created_by', 'updated_by').get(pk=pk)
+    except Equipment.DoesNotExist:
+        raise Http404
+    data = {
+        "image": eq.user_image.url if eq.user_image else "",
+        "propertynum": eq.item_propertynum or "None",
+        "name": eq.item_name or "None",
+        "desc": eq.item_desc if eq.item_desc not in (None, '') else "None",
+        "addinfo": eq.additional_info if eq.additional_info not in (None, '') else "None",
+        "amount": f"{eq.item_amount:,.2f}" if eq.item_amount is not None else "None",
+        "category": eq.category.name if eq.category and eq.category.name else "None",
+        "status": eq.status.name if eq.status and eq.status.name else "None",
+        "po_number": eq.po_number if eq.po_number not in (None, '') else "None",
+        "fund_source": eq.fund_source if eq.fund_source not in (None, '') else "None",
+        "supplier": eq.supplier if eq.supplier not in (None, '') else "None",
+        "po_date": eq.item_purdate.strftime("%b %d, %Y") if eq.item_purdate else "None",
+        "project_name": eq.project_name if eq.project_name not in (None, '') else "None",
+        "assigned_to": eq.assigned_to if eq.assigned_to not in (None, '') else "None",
+        "end_user": eq.end_user if eq.end_user not in (None, '') else "None",
+        "location": eq.location if eq.location not in (None, '') else "None",
+        "current_location": eq.current_location if eq.current_location not in (None, '') else "None",
+        "created": eq.created_at.strftime("%b %d, %Y") if eq.created_at else "None",
+        "created_by": f"{eq.created_by.first_name} {eq.created_by.last_name}" if eq.created_by else "None",
+        "updated": eq.updated_at.strftime("%b %d, %Y") if eq.updated_at else "None",
+        "updated_by": f"{eq.updated_by.first_name} {eq.updated_by.last_name}" if eq.updated_by else "None",
+    }
+    return JsonResponse(data)
+
+@login_required
 @user_passes_test(is_admin_or_encoder)
 def index(request):
-    equipments = Equipment.objects.all()
+    equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
     categories = Category.objects.all()
     statuses = Status.objects.all()
-
     category_id = request.GET.get('category')
     status_id = request.GET.get('status')
     date_from = request.GET.get('date_from')
@@ -58,8 +184,14 @@ def index(request):
     if date_to:
         equipments = equipments.filter(item_purdate__lte=date_to)
 
+    # Pagination
+    from django.core.paginator import Paginator
+    paginator = Paginator(equipments, 10)  
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
     context = {
-        'equipments': equipments,
+        'equipments': page_obj,
         'categories': categories,
         'statuses': statuses,
         'selected_category': category_id,
@@ -162,7 +294,17 @@ def edit_equipment(request, id):
         equipment.item_propertynum = request.POST.get('item_propertynum')
         equipment.item_name = request.POST.get('item_name')
         equipment.item_desc = request.POST.get('item_desc')
-        equipment.item_purdate = request.POST.get('item_purdate')
+
+        # Handle item_purdate safely
+        item_purdate = request.POST.get('item_purdate')
+        if item_purdate:
+            try:
+                equipment.item_purdate = datetime.strptime(item_purdate, '%Y-%m-%d').date()
+            except ValueError:
+                equipment.item_purdate = None
+        else:
+            equipment.item_purdate = None
+
         equipment.po_number = request.POST.get('po_number')
         equipment.fund_source = request.POST.get('fund_source')
         equipment.supplier = request.POST.get('supplier')
@@ -174,8 +316,10 @@ def edit_equipment(request, id):
         equipment.category_id = request.POST.get('category_id')
         equipment.status_id = request.POST.get('status_id')
         equipment.updated_by = request.user
+
         if request.FILES.get('user_image'):
             equipment.user_image = request.FILES['user_image']
+
         equipment.save()
         return redirect('equipments:index')
 
@@ -303,7 +447,6 @@ def delete_user(request, user_id):
         return redirect('equipments:user')
     return render(request, 'equipments/confirm_delete_user.html', {'user_obj': user})
 
-
 @login_required
 def category_list(request):
     is_admin = request.user.groups.filter(name="Admin").exists()
@@ -317,15 +460,12 @@ def category_list(request):
                 messages.success(request, "Category added successfully.")
         else:
             messages.error(request, "Category name cannot be empty.")
-        return redirect('equipments:category')  # update with your URL name
+        return redirect('equipments:category')  
 
     categories = Category.objects.all().order_by('name')
     return render(request, 'equipments/category.html', {
         'categories': categories, 
         'is_admin': is_admin,})
-
-
-
 
 @login_required
 def edit_category(request, id):
@@ -340,7 +480,6 @@ def edit_category(request, id):
             messages.error(request, "Category name cannot be empty.")
     return redirect('equipments:category')
 
-
 @login_required
 @user_passes_test(is_admin)
 def delete_category(request, id):
@@ -350,7 +489,6 @@ def delete_category(request, id):
         messages.success(request, "Category deleted successfully.")
     return redirect('equipments:category')
 
-
 @login_required
 def status_list(request):
     is_admin = request.user.groups.filter(name="Admin").exists()
@@ -358,7 +496,6 @@ def status_list(request):
     return render(request, 'equipments/status.html', {
         'statuses': statuses
         , 'is_admin': is_admin,})
-
 
 @login_required
 def add_status(request):
@@ -426,26 +563,28 @@ def import_excel(request):
         wb = openpyxl.load_workbook(excel_file)
         ws = wb.active
 
-        # Adjust these indices/names to match your Excel columns
         for idx, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
             try:
+                # Convert empty strings to None for all fields
+                cleaned_row = [cell if cell not in ('', None) else None for cell in row]
+
                 Equipment.objects.create(
-                    item_propertynum=row[0],
-                    item_name=row[1],
-                    item_desc=row[2] if row[2] else None,
-                    additional_info=(row[3][:300] if row[3] else None),
-                    item_purdate=parse_date(row[4]),
-                    po_number=row[5] if row[5] else None,
-                    fund_source=row[6] if row[6] else None,
-                    supplier=row[7] if row[7] else None,
-                    item_amount=row[8] if row[8] else None,
-                    project_name=row[9] if row[9] else None,
-                    assigned_to=row[10] if row[10] else None,
-                    end_user=row[11] if row[11] else None,
-                    location=row[12] if row[12] else None,
-                    current_location=row[13] if row[13] else None,
-                    category=Category.objects.get(pk=1),  # or use your logic
-                    status=Status.objects.get(pk=1),      # or use your logic
+                    item_propertynum=cleaned_row[0],
+                    item_name=cleaned_row[1],
+                    item_desc=cleaned_row[2],
+                    additional_info=(cleaned_row[3][:300] if cleaned_row[3] else None),
+                    item_purdate=parse_date(cleaned_row[4]),
+                    po_number=cleaned_row[5],
+                    fund_source=cleaned_row[6],
+                    supplier=cleaned_row[7],
+                    item_amount=cleaned_row[8],
+                    project_name=cleaned_row[9],
+                    assigned_to=cleaned_row[10],
+                    end_user=cleaned_row[11],
+                    location=cleaned_row[12],
+                    current_location=cleaned_row[13],
+                    category=Category.objects.get(pk=1),  
+                    status=Status.objects.get(pk=1),      
                     emp=request.user,
                     created_by=request.user,
                     updated_by=request.user,
@@ -465,3 +604,52 @@ def parse_date(val):
     except Exception:
         return None  # or raise
 
+
+@require_POST
+@login_required
+def bulk_update_equipment(request):
+    
+    ids = request.POST.get('equipment_ids', '')
+    status_id = request.POST.get('status_id')
+    category_id = request.POST.get('category_id')
+    if not ids:
+        return JsonResponse({'error': 'No equipment selected.'}, status=400)
+    id_list = [int(i) for i in ids.split(',') if i.isdigit()]
+    qs = Equipment.objects.filter(id__in=id_list)
+    updates = {}
+    if status_id:
+        updates['status_id'] = status_id
+    if category_id:
+        updates['category_id'] = category_id
+    if updates:
+        qs.update(**updates)
+    return JsonResponse({'success': True})
+
+
+@login_required
+def returned(request):
+    equipments = Equipment.objects.filter(is_returned=True)
+    return render(request, 'equipments/returned.html', {'equipments': equipments})
+
+
+@require_POST
+@login_required
+def return_equipment(request):
+    eq_id = request.POST.get('equipment_id')
+    file = request.FILES.get('return_document')
+    remarks = request.POST.get('return_remarks')
+    condition = request.POST.get('return_condition')
+    return_type = request.POST.get('return_type')
+    if not eq_id or not file:
+        messages.error(request, "Equipment and document are required.")
+        return redirect('equipments:index')
+    eq = get_object_or_404(Equipment, id=eq_id)
+    eq.is_returned = True
+    eq.return_document = file
+    eq.return_remarks = remarks
+    eq.return_condition = condition
+    eq.return_type = return_type
+    eq.received_by = request.user
+    eq.save()
+    messages.success(request, "Equipment marked as returned.")
+    return redirect('equipments:index')

@@ -37,7 +37,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <label class="form-label" for="item_purdate">Purchase Date</label>
-                        <input type="date" class="form-control" name="item_purdate" id="item_purdate" value="{{ equipment.item_purdate|date:'Y-m-d' }}">
+                        <input type="date" name="item_purdate" class="form-control" value="{{ form.item_purdate.value|default_if_none:'' }}">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label" for="po_number">PO Number</label>
