@@ -83,6 +83,15 @@
       </div>
       {% endif %}
     </div>
+
+    <div class="dropdown mb-2">
+      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="columnVisibilityDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+        Columns
+      </button>
+      <ul class="dropdown-menu" aria-labelledby="columnVisibilityDropdown" id="columnVisibilityMenu">
+        <!-- JS will populate this -->
+      </ul>
+    </div>
   </div>
 
 
@@ -99,7 +108,9 @@
               <th>Property #</th>
               <th>Name</th>
               <th>Description</th>
+              <th>PO Number</th>
               <th>Amount</th>
+              <th>End User</th>
               <th>Category</th>
               <th>Status</th>
               <th>Actions</th>
@@ -320,6 +331,7 @@ table = $('#equipmentTable').DataTable({
   dom: 'lrtip',
   serverSide: true,
   processing: true,
+  // stateSave: true,
   ajax: {
     url: '/equipments/equipment/table/json/',
     type: 'GET',
@@ -345,13 +357,75 @@ table = $('#equipmentTable').DataTable({
     { title: "Property #" },              // 3
     { title: "Name" },                    // 4
     { title: "Description" },             // 5
+    { title: "PO Number" },               // 
     { title: "Amount" },                  // 6
+    { title: "End User" },                //
     { title: "Category" },                // 7
     { title: "Status" },                  // 8
     { title: "Actions", orderable: false } // 9
   ],
   pageLength: 10
 });
+
+// Column titles in order (match your DataTable columns)
+const columnTitles = [
+  "Select",      // 0
+  "ID",          // 1 (hidden)
+  "Image",       // 2
+  "Property #",  // 3
+  "Name",        // 4
+  "Description", // 5
+  "PO Number",   // 6 
+  "Amount",      // 7
+  "End User",    // 8
+  "Category",    // 9
+  "Status",      // 10
+  "Actions"      // 11
+];
+
+// Default visible columns (true = visible, false = hidden)
+const defaultVisible = [
+  true,  // 0: 
+  false, // 1: 
+  true,  // 2: 
+  true,  // 3: 
+  true,  // 4: 
+  true,  // 5: 
+  true,  // 6: 
+  true,  // 7: 
+  true,  // 8: 
+  true,  // 9: 
+  true,  // 10: 
+  true   // 11: 
+];
+
+// Populate the dropdown
+columnTitles.forEach((title, idx) => {
+  // Don't show the "ID" column in the menu
+  if (title === "ID") return;
+
+    $('#columnVisibilityMenu').append(`
+      <li>
+        <label class="dropdown-item">
+          <input type="checkbox" class="toggle-vis" data-column="${idx}" ${defaultVisible[idx] ? 'checked' : ''}>
+          ${title}
+        </label>
+      </li>
+    `);
+  });
+
+  $('#columnVisibilityMenu').on('click', function (e) {
+    e.stopPropagation();
+  });
+
+    // Handle toggling
+  $('#columnVisibilityMenu').on('change', '.toggle-vis', function () {
+    var column = table.column($(this).data('column'));
+    column.visible(this.checked, false); // false = don't redraw yet
+    table.columns.adjust().draw(false);  // redraw after all changes
+  });
+
+
 
   // Custom global search
   $('#tableSearch').on('keyup', function () {
@@ -418,65 +492,51 @@ table = $('#equipmentTable').DataTable({
       if (!isNaN(colIdx)) filteredCols.push(colIdx);
     });
 
-    // 2. Always show the hidden ID, Image, and Actions columns
-    const alwaysVisible = [0, 1, 9]; // 0: hidden ID, 1: Image, 8: Actions (adjust if needed)
-    let showCols = alwaysVisible.concat(filteredCols);
-
-    // 3. Loop through all columns and set visibility
-    table.columns().every(function (idx) {
-      if (showCols.includes(idx)) {
-        this.visible(true);
-      } else {
-        this.visible(false);
-      }
-    });
-
     // 4. Reload data
     table.ajax.reload();
     $('#advancedFilterModal').modal('hide');
-    var equipmentId = data[1];
   });
 
-$('#equipmentTable tbody').on('click', 'tr', function (e) {
-  // Prevent modal if clicking on a button, link, or inside the Actions column
-  if (
-    $(e.target).closest('button').length ||
-    $(e.target).closest('a').length ||
-    $(e.target).closest('td').index() === 9 // Actions column index (adjust if needed)
-  ) {
-    return;
-  }
+  $('#equipmentTable tbody').on('click', 'tr', function (e) {
+  
+    if (
+      $(e.target).closest('button').length ||
+      $(e.target).closest('a').length ||
+      $(e.target).closest('td').index() === 9 // Actions column index (adjust if needed)
+    ) {
+      return;
+    }
 
-  var table = $('#equipmentTable').DataTable();
-  var data = table.row(this).data();
-  var equipmentId = data[1]; // This is the hidden ID column, always present in the data array
+    var table = $('#equipmentTable').DataTable();
+    var data = table.row(this).data();
+    var equipmentId = data[1]; // This is the hidden ID column, always present in the data array
 
-  // Now fetch and show the modal as before
-  $.get(`/equipments/equipment/${equipmentId}/json/`, function(data) {
-    $('#modalImage').attr('src', data.image);
-    $('#modalPropertyNum').text(data.propertynum);
-    $('#modalName').text(data.name);
-    $('#modalDesc').text(data.desc);
-    $('#modalAddInfo').text(data.addinfo);
-    $('#modalAmount').text('₱' + data.amount);
-    $('#modalCategory').text(data.category);
-    $('#modalStatus').text(data.status);
-    $('#modalPONumber').text(data.po_number);
-    $('#modalPODate').text(data.po_date);
-    $('#modalFundSource').text(data.fund_source);
-    $('#modalSupplier').text(data.supplier);
-    $('#modalProjectName').text(data.project_name);
-    $('#modalAssignedTo').text(data.assigned_to);
-    $('#modalEndUser').text(data.end_user);
-    $('#modalLocation').text(data.location);
-    $('#modalCurrentLocation').text(data.current_location);
-    $('#modalCreated').text(data.created);
-    $('#modalCreatedBy').text(data.created_by);
-    $('#modalUpdated').text(data.updated);
-    $('#modalUpdatedBy').text(data.updated_by);
-    $('#equipmentModal').modal('show');
+    // Now fetch and show the modal as before
+    $.get(`/equipments/equipment/${equipmentId}/json/`, function(data) {
+        $('#modalImage').attr('src', data.image);
+        $('#modalPropertyNum').text(data.propertynum);
+        $('#modalName').text(data.name);
+        $('#modalDesc').text(data.desc);
+        $('#modalAddInfo').text(data.addinfo);
+        $('#modalAmount').text('₱' + data.amount);
+        $('#modalCategory').text(data.category);
+        $('#modalStatus').text(data.status);
+        $('#modalPONumber').text(data.po_number);
+        $('#modalPODate').text(data.po_date);
+        $('#modalFundSource').text(data.fund_source);
+        $('#modalSupplier').text(data.supplier);
+        $('#modalProjectName').text(data.project_name);
+        $('#modalAssignedTo').text(data.assigned_to);
+        $('#modalEndUser').text(data.end_user);
+        $('#modalLocation').text(data.location);
+        $('#modalCurrentLocation').text(data.current_location);
+        $('#modalCreated').text(data.created);
+        $('#modalCreatedBy').text(data.created_by);
+        $('#modalUpdated').text(data.updated);
+        $('#modalUpdatedBy').text(data.updated_by);
+        $('#equipmentModal').modal('show');
+      });
   });
-});
 
   $('#selectAll').on('click', function () {
     $('.equipment-checkbox').prop('checked', this.checked);
@@ -506,11 +566,12 @@ $('#equipmentTable tbody').on('click', 'tr', function (e) {
   
 
   $('#returnModal').on('show.bs.modal', function (event) {
-  $('.modal').not(this).modal('hide');
-  var button = $(event.relatedTarget);
-  var eqId = button.data('eqid');
-  $('#returnEquipmentId').val(eqId);
-});
+    $('.modal').not(this).modal('hide');
+    var button = $(event.relatedTarget);
+    var eqId = button.data('eqid');
+    $('#returnEquipmentId').val(eqId);
+  });
+  
   
 });
 </script>

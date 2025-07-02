@@ -43,7 +43,37 @@ def equipment_table_json(request):
 
     qs = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp')
 
-    # ... your filtering logic ...
+    # Handle global search
+    if search_value:
+        qs = qs.filter(
+            Q(item_propertynum__icontains=search_value) |
+            Q(item_name__icontains=search_value) |
+            Q(item_desc__icontains=search_value) |
+            Q(category__name__icontains=search_value) |
+            Q(status__name__icontains=search_value)
+        )
+    # Handle advanced filters
+    for key, value in request.GET.items():
+        if key.startswith('filter_col_') and value:
+            col_idx = key.replace('filter_col_', '')
+            # Map col_idx to field name
+            if col_idx == '2':  # Property #
+                qs = qs.filter(item_propertynum__icontains=value)
+            elif col_idx == '3':  # Name
+                qs = qs.filter(item_name__icontains=value)
+            elif col_idx == '4':  # Description
+                qs = qs.filter(item_desc__icontains=value)
+            elif col_idx == '5':  # Amount
+                qs = qs.filter(item_amount__icontains=value)
+            elif col_idx == '6':  # Category
+                qs = qs.filter(category__name=value)
+            elif col_idx == '7':  # Status
+                qs = qs.filter(status__name=value)
+
+    total = Equipment.objects.filter(is_returned=False).count()
+    filtered = qs.count()
+    equipments = qs.order_by('-item_purdate')[start:start+length]
+
 
     total = Equipment.objects.filter(is_returned=False).count()
     filtered = qs.count()
@@ -84,13 +114,15 @@ def equipment_table_json(request):
             eq.item_propertynum,
             eq.item_name,
             eq.item_desc if eq.item_desc is not None else 'None',
+            eq.po_number if eq.po_number else 'None',
             f'₱{eq.item_amount:,.2f}',
+            eq.end_user if eq.end_user else 'None',
             eq.category.name,
             eq.status.name,
             actions
         ])
 
-    # <-- Make sure this is OUTSIDE the for loop!
+
     return JsonResponse({
         'draw': draw,
         'recordsTotal': total,
@@ -428,7 +460,7 @@ def category_list(request):
                 messages.success(request, "Category added successfully.")
         else:
             messages.error(request, "Category name cannot be empty.")
-        return redirect('equipments:category')  # update with your URL name
+        return redirect('equipments:category')  
 
     categories = Category.objects.all().order_by('name')
     return render(request, 'equipments/category.html', {
@@ -551,8 +583,8 @@ def import_excel(request):
                     end_user=cleaned_row[11],
                     location=cleaned_row[12],
                     current_location=cleaned_row[13],
-                    category=Category.objects.get(pk=1),  # or use your logic
-                    status=Status.objects.get(pk=1),      # or use your logic
+                    category=Category.objects.get(pk=1),  
+                    status=Status.objects.get(pk=1),      
                     emp=request.user,
                     created_by=request.user,
                     updated_by=request.user,
