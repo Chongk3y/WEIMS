@@ -473,14 +473,16 @@ def delete_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
     item_name = equipment.item_name
     item_propertynum = equipment.item_propertynum
-    equipment_id = equipment.id
-    equipment.delete()
+    # Log the delete action before deleting equipment and logs
     EquipmentActionLog.objects.create(
-        equipment_id=equipment_id,
+        equipment=equipment,
         action='delete',
         user=request.user,
         summary=f"Deleted equipment: {item_name} (Property #: {item_propertynum})"
     )
+    # Delete related action logs
+    EquipmentActionLog.objects.filter(equipment_id=equipment.id).delete()
+    equipment.delete()
     return redirect('equipments:index')
 
 
@@ -923,7 +925,7 @@ def archived_equipment_table_json(request):
             eq.end_user or 'None',
             eq.category.name,
             f'{eq.status.name} {"<span class=\'badge bg-secondary ms-1\'>Deleted</span>" if eq.is_archived else ""}',
-            timezone.localtime(eq.date_archived).strftime('%Y-%m-%d %H:%M') if eq.date_archived else 'None',
+            eq.date_archived.strftime('%Y-%m-%d %H:%M') if eq.date_archived else 'None',
             f'{eq.archived_by.get_full_name() if eq.archived_by else "None"}',
             f'''
             <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
@@ -972,4 +974,13 @@ def equipment_history_json(request, equipment_id):
 def history_logs(request):
     logs = EquipmentActionLog.objects.select_related('user', 'equipment').order_by('-timestamp')[:500]  # Limit for performance
     return render(request, 'equipments/history_logs.html', {'logs': logs})
+
+@login_required
+@user_passes_test(is_admin_superadmin_encoder)
+def clear_history_logs(request):
+    if request.method == 'POST':
+        EquipmentActionLog.objects.all().delete()
+        EquipmentHistory.objects.all().delete()  # Optional: clear field-level history too
+        messages.success(request, "All history logs have been cleared.")
+    return redirect('equipments:history_logs')
 

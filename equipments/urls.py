@@ -36,6 +36,7 @@ urlpatterns = [
     path('unarchive/<int:pk>/', views.unarchive_equipment, name='unarchive_equipment'),
     path('<int:equipment_id>/history/', views.equipment_history_json, name='equipment_history_json'),
     path('history-logs/', views.history_logs, name='history_logs'),
+    path('history/clear/', views.clear_history_logs, name='clear_history_logs'),
 
 
 
