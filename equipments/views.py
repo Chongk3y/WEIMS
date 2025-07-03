@@ -17,6 +17,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User, Group
 # Third-party imports
 import openpyxl
+from django.db.models.functions import TruncMonth
+
 # Local app imports
 from .models import Equipment, Category, Status
 from .models import EquipmentHistory
@@ -485,37 +487,60 @@ def delete_equipment(request, id):
 @login_required
 def dashboard(request):
     total_equipments = Equipment.objects.count()
-    status_counts = []
-    for status in Status.objects.all():
-        count = Equipment.objects.filter(status=status).count()
-        status_counts.append({'name': status.name, 'count': count})
-    return render(request, 'equipments/dashboard.html', {
-        'total_equipments': total_equipments,
-        'status_counts': status_counts,
-    })
+    total_archived = Equipment.objects.filter(is_archived=True).count()
+    total_returned = Equipment.objects.filter(is_returned=True).count()
 
-@login_required
-def dashboard(request):
-    total_equipments = Equipment.objects.count()
-
+    # Status counts for pie chart
     status_counts = Equipment.objects.values('status__name').annotate(
         name=F('status__name'), count=Count('id')
     )
+    status_labels = [s['name'] for s in status_counts]
+    status_data = [s['count'] for s in status_counts]
 
-    recent_equipments = Equipment.objects.order_by('-id')[:5]
-
+    # Category counts for bar chart
     categories = Category.objects.annotate(count=Count('equipment'))
     category_labels = [cat.name for cat in categories]
     category_counts = [cat.count for cat in categories]
 
+    # Recent equipments
+    recent_equipments = Equipment.objects.order_by('-id')[:5]
+
+    # Equipments added per month (last 12 months)
+    from datetime import timedelta
+    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    months = [today.replace(day=1)]
+    for _ in range(11):
+        prev = months[-1]
+        year = prev.year - 1 if prev.month == 1 else prev.year
+        month = 12 if prev.month == 1 else prev.month - 1
+        # Handle months with fewer days (e.g., Feb)
+        try:
+            months.append(prev.replace(year=year, month=month, day=1))
+        except ValueError:
+            months.append((prev - timedelta(days=1)).replace(day=1))
+    months = sorted(months)
+    monthly_counts = Equipment.objects.filter(
+        created_at__gte=months[0]
+    ).annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
+    month_labels = [m.strftime('%b %Y') for m in months]
+    month_data = []
+    month_map = {m['month'].strftime('%b %Y'): m['count'] for m in monthly_counts}
+    for label in month_labels:
+        month_data.append(month_map.get(label, 0))
+
     context = {
         'total_equipments': total_equipments,
+        'total_archived': total_archived,
+        'total_returned': total_returned,
         'status_counts': status_counts,
-        'recent_equipments': recent_equipments,
+        'status_labels': status_labels,
+        'status_data': status_data,
         'category_labels': json.dumps(category_labels),
         'category_counts': json.dumps(category_counts),
+        'recent_equipments': recent_equipments,
+        'month_labels': json.dumps(month_labels),
+        'month_data': json.dumps(month_data),
     }
-
     return render(request, 'equipments/dashboard.html', context)
 
 @login_required
