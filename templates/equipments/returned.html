@@ -1,62 +1,61 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% block content %}
 <div class="container mt-4">
   <h5 class="fw-semibold mb-0">Returned Equipment</h5>
-  <div class="table-responsive">
-    <table class="table table-bordered table-striped">
-      <thead>
-        <tr>
-        <th>Image</th>
-          <th>Property #</th>
-          <th>Name</th>
-          <th>Description</th>
-          <th>Returned By</th>
-          <th>Return Document</th>
-          <th>Date Returned</th>
-          <th>Remarks</th>
-          <th>Condition</th>
-          <th>Return Type</th>
-          <!-- 
-          <th>Received By</th>
-          -->
-        </tr>
-      </thead>
-      <tbody>
-        {% for eq in equipments %}
-        <tr>
-            <td>
-                {% if eq.user_image %}
-                <img src="{{ eq.user_image.url }}" alt="Equipment Image" style="max-width: 100px;">
-                {% else %}
-                <span class="text-muted">No Image</span>
-                {% endif %}
-            </td>
-          <td>{{ eq.item_propertynum }}</td>
-          <td>{{ eq.item_name }}</td>
-          <td>{{ eq.item_desc }}</td>
-          <td>{{ eq.emp.get_full_name }}</td>
-          <td>
-            {% if eq.return_document %}
-              <a href="{{ eq.return_document.url }}" target="_blank">View Document</a>
-            {% else %}
-              None
-            {% endif %}
-          </td>
-          <td>{{ eq.updated_at|date:"M d, Y" }}</td>
-          <td>{{ eq.return_remarks }}</td>
-          <td>{{ eq.return_condition }}</td>
-          <td>{{ eq.return_type }}</td>
-           <!-- 
-          <td>{{ eq.received_by.get_full_name }}</td>
-            -->
-        </tr>
-        {% empty %}
-        <tr>
-          <td colspan="10" class="text-center">No returned equipment found.</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-2">
+      <div class="table-responsive">
+        <table id="returnedEquipmentTable" class="table compact-table">
+          <thead>
+            <tr>
+              <th></th>
+              <th>ID</th>
+              <th>Image</th>
+              <th>Property #</th>
+              <th>Name</th>
+              <th>Description</th>
+              <th>Returned By</th>
+              <th>Return Document</th>
+              <th>Date Returned</th>
+              <th>Remarks</th>
+              <th>Condition</th>
+              <th>Return Type</th>
+              <th>Received By</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+$(document).ready(function () {
+  $('#returnedEquipmentTable').DataTable({
+    serverSide: true,
+    processing: true,
+    ajax: {
+      url: '/equipments/returned/json/', // You will create this view
+      type: 'GET'
+    },
+    columns: [
+      { title: "Select", orderable: false },
+      { title: "ID", visible: false },
+      { title: "Image", orderable: false },
+      { title: "Property #" },
+      { title: "Name" },
+      { title: "Description" },
+      { title: "Returned By" },
+      { title: "Return Document", orderable: false },
+      { title: "Date Returned" },
+      { title: "Remarks" },
+      { title: "Condition" },
+      { title: "Return Type" },
+      { title: "Received By" }
+    ]
+  });
+});
+</script>
 {% endblock %}

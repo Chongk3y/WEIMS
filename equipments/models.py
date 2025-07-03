@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.utils.html import mark_safe
 from django.conf import settings
 from django.utils import timezone
+from django import forms
 
 now = datetime.now
 
@@ -94,13 +95,23 @@ class Equipment(models.Model):
         blank=True,
         verbose_name="Updated By"
     )
-
+    order_receipt = models.FileField(upload_to='receipts/', null=True, blank=True)
     is_returned = models.BooleanField(default=False)
     return_document = models.FileField(upload_to='return_docs/', null=True, blank=True, verbose_name="Return Document")
     return_remarks = models.TextField(blank=True, null=True, verbose_name="Return Remarks")
     return_condition = models.CharField(max_length=50, blank=True, null=True, verbose_name="Condition Upon Return")
     return_type = models.CharField(max_length=30, blank=True, null=True, verbose_name="Return Type")
-    received_by = models.ForeignKey(User, null=True, blank=True, related_name='received_equipments', on_delete=models.SET_NULL)
+    returned_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Returned By")
+    received_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Received By")
+    is_archived = models.BooleanField(default=False)
+    date_archived = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        related_name='archived_equipments',
+        on_delete=models.SET_NULL
+    )
 
     class Meta: 
         verbose_name = "Equipment"
@@ -112,10 +123,39 @@ class Equipment(models.Model):
     def image_tag(self):
         return mark_safe('<img src="/equipments/media/%s" width="50" height="50" />' % self.user_image)   
     
-    
-    
+class EquipmentForm(forms.ModelForm):
+    class Meta:
+        model = Equipment
+        fields = '__all__'  # Or explicitly list your fields
+    def image_tag(self):
+        return mark_safe('<img src="/equipments/media/%s" width="50" height="50" />' % self.user_image)   
 
+class EquipmentHistory(models.Model):
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='history')
+    field_changed = models.CharField(max_length=255)  # e.g. 'assigned_to', 'item_name', etc.
+    old_value = models.TextField(blank=True, null=True)
+    new_value = models.TextField(blank=True, null=True)
+    action = models.CharField(max_length=50, default='Edited')  # e.g. 'Edited', 'Reassigned', etc.
+    changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"{self.get_action_display()} {self.field_changed} from {self.old_value} to {self.new_value}"
 
-    
-     
+class EquipmentActionLog(models.Model):
+    ACTION_CHOICES = [
+        ('create', 'Created'),
+        ('edit', 'Edited'),
+        ('delete', 'Deleted'),
+        ('archive', 'Archived'),
+        ('unarchive', 'Unarchived'),
+        # Add more as needed
+    ]
+    equipment = models.ForeignKey('Equipment', on_delete=models.SET_NULL, null=True, blank=True)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    summary = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.get_action_display()} by {self.user} on {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"

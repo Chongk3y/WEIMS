@@ -23,9 +23,11 @@
     <span style="font-size: 0.9em;">▾</span>
   </a>
 
-  <div class="collapse ps-3 {% if request.resolver_match.url_name == 'index' or request.resolver_match.url_name == 'returned' %}show{% endif %}" id="equipment-collapse">
+  <div class="collapse ps-3 {% if request.resolver_match.url_name == 'index' or request.resolver_match.url_name == 'returned' or request.resolver_match.url_name == 'archived_equipments' or request.resolver_match.url_name == 'history_logs'%}show{% endif %}" id="equipment-collapse">
     <a href="{% url 'equipments:index' %}" class="nav-link {% if request.resolver_match.url_name == 'index' %}active{% endif %}">All Equipment</a>
     <a href="{% url 'equipments:returned' %}" class="nav-link {% if request.resolver_match.url_name == 'returned' %}active{% endif %}">Returned Equipment</a>
+    <a href="{% url 'equipments:archived_equipments' %}" class="nav-link {% if request.resolver_match.url_name == 'archived_equipments' %}active{% endif %}">Recently Deleted</a>
+    <a href="{% url 'equipments:history_logs' %}" class="nav-link {% if request.resolver_match.url_name == 'history_logs' %}active{% endif %}">History Log</a>
   </div>
 
   <a href="{% url 'equipments:user' %}" class="nav-link {% if request.resolver_match.url_name == 'user' %}active{% endif %}">
