@@ -20,6 +20,7 @@ import openpyxl
 # Local app imports
 from .models import Equipment, Category, Status
 from .models import EquipmentHistory
+from .models import EquipmentActionLog
 
 
 
@@ -312,6 +313,12 @@ def processaddequipment(request):
                 order_receipt=order_receipt 
             )
             equipment.save()
+            EquipmentActionLog.objects.create(
+            equipment=equipment,
+            action='create',
+            user=request.user,
+            summary=f"Created equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
+)
             return HttpResponseRedirect('/equipments/')
       
 @login_required 
@@ -324,8 +331,22 @@ def edit_equipment(request, id):
 
     if request.method == 'POST':
         # Capture current values before changes
-        original_assigned_to = equipment.assigned_to
-        original_end_user = equipment.end_user
+        original = {
+            'item_propertynum': equipment.item_propertynum,
+            'item_name': equipment.item_name,
+            'item_desc': equipment.item_desc,
+            'item_purdate': equipment.item_purdate,
+            'po_number': equipment.po_number,
+            'fund_source': equipment.fund_source,
+            'supplier': equipment.supplier,
+            'item_amount': equipment.item_amount,
+            'assigned_to': equipment.assigned_to,
+            'location': equipment.location,
+            'end_user': equipment.end_user,
+            'emp_id': equipment.emp_id,
+            'category_id': equipment.category_id,
+            'status_id': equipment.status_id,
+        }
 
         equipment.item_propertynum = request.POST.get('item_propertynum')
         equipment.item_name = request.POST.get('item_name')
@@ -358,17 +379,82 @@ def edit_equipment(request, id):
 
         # Save equipment first
         equipment.save()
+        EquipmentActionLog.objects.create(
+            equipment=equipment,
+            action='edit',
+            user=request.user,
+            summary=f"Edited equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
+        )
 
-        # ✅ Check for changes in assigned_to and end_user
-        if original_assigned_to != equipment.assigned_to or original_end_user != equipment.end_user:
-            EquipmentHistory.objects.create(
-                equipment=equipment,
-                previous_assigned_to=original_assigned_to,
-                new_assigned_to=equipment.assigned_to,  # Save new value
-                previous_end_user=original_end_user,
-                new_end_user=equipment.end_user,        # Save new value
-                changed_by=request.user
-            )
+        field_labels = {
+            'item_propertynum': 'Property #',
+            'item_name': 'Name',
+            'item_desc': 'Description',
+            'item_purdate': 'Purchase Date',
+            'po_number': 'PO Number',
+            'fund_source': 'Fund Source',
+            'supplier': 'Supplier',
+            'item_amount': 'Amount',
+            'assigned_to': 'Assigned To',
+            'location': 'Location',
+            'end_user': 'End User',
+            'emp_id': 'Employee',
+            'category_id': 'Category',
+            'status_id': 'Status',
+        }
+        for field, old in original.items():
+            new = getattr(equipment, field)
+            # For ForeignKeys, get display value
+            if field == 'category_id' and old != new:
+                old_val = str(Category.objects.get(pk=old).name) if old else ''
+                new_val = str(equipment.category.name) if equipment.category else ''
+            elif field == 'status_id' and old != new:
+                old_val = str(Status.objects.get(pk=old).name) if old else ''
+                new_val = str(equipment.status.name) if equipment.status else ''
+            elif field == 'emp_id' and old != new:
+                old_val = str(User.objects.get(pk=old).get_full_name()) if old else ''
+                new_val = str(equipment.emp.get_full_name()) if equipment.emp else ''
+            elif field == 'item_purdate' and old != new:
+                old_val = old.strftime('%Y-%m-%d') if old else ''
+                new_val = new.strftime('%Y-%m-%d') if new else ''
+            elif field == 'item_amount':
+                try:
+                    old_val = float(old) if old not in (None, '', 'None') else 0.0
+                except Exception:
+                    old_val = 0.0
+                try:
+                    new_val = float(new) if new not in (None, '', 'None') else 0.0
+                except Exception:
+                    new_val = 0.0
+                old_val_str = f"₱{old_val:,.2f}" if old not in ('', None, 'None') else ''
+                new_val_str = f"₱{new_val:,.2f}" if new not in ('', None, 'None') else ''
+                if old_val != new_val:
+                    EquipmentHistory.objects.create(
+                        equipment=equipment,
+                        field_changed=field_labels.get(field, field),
+                        old_value=old_val_str,
+                        new_value=new_val_str,
+                        action='Edited',
+                        changed_by=request.user
+                    )
+                continue
+            else:
+                # Normalize for text fields: treat None, '', and 'None' as equivalent, and strip whitespace
+                def norm(val):
+                    if val is None or val == '' or str(val).strip().lower() == 'none':
+                        return ''
+                    return str(val).strip()
+                old_val = norm(old)
+                new_val = norm(new)
+            if old_val != new_val:
+                EquipmentHistory.objects.create(
+                    equipment=equipment,
+                    field_changed=field_labels.get(field, field),
+                    old_value=old_val,
+                    new_value=new_val,
+                    action='Edited',
+                    changed_by=request.user
+                )
 
         return redirect('equipments:index')
 
@@ -383,7 +469,16 @@ def edit_equipment(request, id):
 @user_passes_test(is_admin_or_superadmin)
 def delete_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
+    item_name = equipment.item_name
+    item_propertynum = equipment.item_propertynum
+    equipment_id = equipment.id
     equipment.delete()
+    EquipmentActionLog.objects.create(
+        equipment_id=equipment_id,
+        action='delete',
+        user=request.user,
+        summary=f"Deleted equipment: {item_name} (Property #: {item_propertynum})"
+    )
     return redirect('equipments:index')
 
 
@@ -760,6 +855,12 @@ def archive_equipment(request, pk):
     equipment.date_archived = timezone.now()
     equipment.archived_by = request.user
     equipment.save()
+    EquipmentActionLog.objects.create(
+    equipment=equipment,
+    action='archive',
+    user=request.user,
+    summary=f"Archived equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
+)
     messages.success(request, "Equipment sent to archive.")
     return redirect('equipments:index')
 
@@ -818,18 +919,32 @@ def unarchive_equipment(request, pk):
     eq = get_object_or_404(Equipment, pk=pk)
     eq.is_archived = False
     eq.save()
+    EquipmentActionLog.objects.create(
+    equipment=eq,
+    action='unarchive',
+    user=request.user,
+    summary=f"Unarchived equipment: {eq.item_name} (Property #: {eq.item_propertynum})"
+)
     return redirect('equipments:archived_equipments')
 
 @login_required
 def equipment_history_json(request, equipment_id):
     history = EquipmentHistory.objects.filter(equipment_id=equipment_id).order_by('-changed_at')
-    data = [{
-        'previous_assigned_to': h.previous_assigned_to or '',
-        'new_assigned_to': h.new_assigned_to or '',
-        'previous_end_user': h.previous_end_user or '',
-        'new_end_user': h.new_end_user or '',
-        'changed_at': h.changed_at.strftime('%Y-%m-%d %H:%M'),
-        'changed_by': h.changed_by.get_full_name() or h.changed_by.username
-    } for h in history]
+    data = [
+        {
+            'changed_at': h.changed_at.strftime('%Y-%m-%d %H:%M'),
+            'action': h.action,
+            'field_changed': h.field_changed,
+            'old_value': h.old_value,
+            'new_value': h.new_value,
+            'changed_by': h.changed_by.get_full_name() or h.changed_by.username
+        }
+        for h in history
+    ]
     return JsonResponse(data, safe=False)
+
+@login_required
+def history_logs(request):
+    logs = EquipmentActionLog.objects.select_related('user', 'equipment').order_by('-timestamp')[:500]  # Limit for performance
+    return render(request, 'equipments/history_logs.html', {'logs': logs})
 

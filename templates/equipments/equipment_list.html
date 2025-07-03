@@ -198,7 +198,7 @@
             <img id="modalImage" src="" class="img-fluid rounded shadow-sm" style="width: 120px; height: 120px; object-fit: cover;" alt="Equipment Image">
             <div class="text-center mt-2">
               <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#historyModal">
-                <i class="bi bi-clock-history"></i> View History
+                <i class="bi bi-clock-history"></i> View Edit History
               </button>
             </div>
           </div>
@@ -236,18 +236,20 @@
 
 <!-- History Modal -->
 <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-sm">
+  <div class="modal-dialog modal-dialog-centered modal-lg"> <!-- Changed from modal-sm to modal-lg -->
     <div class="modal-content">
       <div class="modal-header">
-        <h6 class="modal-title" id="historyModalLabel">History</h6>
+        <h5 class="modal-title" id="historyModalLabel">Edit History</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body" id="historyContent">
+      <div class="modal-body" id="historyContent" style="max-height: 65vh; overflow-y: auto;">
         <p class="text-muted">Loading history...</p>
+        <!-- You can inject table or content dynamically here -->
       </div>
     </div>
   </div>
 </div>
+
 
 <!-- Advanced Filter -->
 <div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-labelledby="advancedFilterLabel" aria-hidden="true">
@@ -626,18 +628,39 @@ columnTitles.forEach((title, idx) => {
     $('#historyContent').html('<p class="text-muted">Loading history...</p>');
     
     $.get(`/equipments/${equipmentId}/history/`, function (data) {
-      if (data.length === 0) {
+      if (!data || data.length === 0) {
         $('#historyContent').html('<p class="text-muted">No history available.</p>');
       } else {
-        const items = data.map(h => `
-          <div class="mb-2 small">
-            <div><strong>Assigned To:</strong> <span class="text-danger">${h.previous_assigned_to || 'None'}</span> <i class="bi bi-arrow-right"></i> <span class="text-success">${h.new_assigned_to || 'None'}</span></div>
-            <div><strong>End User:</strong> <span class="text-danger">${h.previous_end_user || 'None'}</span> <i class="bi bi-arrow-right"></i> <span class="text-success">${h.new_end_user || 'None'}</span></div>
-            <div class="text-muted"><small>${h.changed_at} by ${h.changed_by}</small></div>
-          </div>
-          <hr>
-        `).join('');
-        $('#historyContent').html(items);
+        // Build a table for the new structure
+        let tableHtml = `
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Action</th>
+                  <th>Field</th>
+                  <th>Old Value</th>
+                  <th>New Value</th>
+                  <th>Changed By</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        data.forEach(h => {
+          tableHtml += `
+            <tr>
+              <td>${h.changed_at}</td>
+              <td>${h.action}</td>
+              <td>${h.field_changed}</td>
+              <td class="text-danger">${h.old_value || 'None'}</td>
+              <td class="text-success">${h.new_value || 'None'}</td>
+              <td>${h.changed_by}</td>
+            </tr>
+          `;
+        });
+        tableHtml += '</tbody></table></div>';
+        $('#historyContent').html(tableHtml);
       }
     });
   });

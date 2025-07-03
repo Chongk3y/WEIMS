@@ -132,14 +132,30 @@ class EquipmentForm(forms.ModelForm):
 
 class EquipmentHistory(models.Model):
     equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='history')
-    previous_assigned_to = models.CharField(max_length=255, blank=True, null=True)
-    new_assigned_to = models.CharField(max_length=255, blank=True, null=True)  # NEW FIELD
-    previous_end_user = models.CharField(max_length=255, blank=True, null=True)
-    new_end_user = models.CharField(max_length=255, blank=True, null=True)      # NEW FIELD
+    field_changed = models.CharField(max_length=255)  # e.g. 'assigned_to', 'item_name', etc.
+    old_value = models.TextField(blank=True, null=True)
+    new_value = models.TextField(blank=True, null=True)
+    action = models.CharField(max_length=50, default='Edited')  # e.g. 'Edited', 'Reassigned', etc.
     changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     changed_at = models.DateTimeField(auto_now_add=True)
 
-class EquipmentForm(forms.ModelForm):
-    class Meta:
-        model = Equipment
-        fields = '__all__'  # Or explicitly list your fields
+    def __str__(self):
+        return f"{self.get_action_display()} {self.field_changed} from {self.old_value} to {self.new_value}"
+
+class EquipmentActionLog(models.Model):
+    ACTION_CHOICES = [
+        ('create', 'Created'),
+        ('edit', 'Edited'),
+        ('delete', 'Deleted'),
+        ('archive', 'Archived'),
+        ('unarchive', 'Unarchived'),
+        # Add more as needed
+    ]
+    equipment = models.ForeignKey('Equipment', on_delete=models.SET_NULL, null=True, blank=True)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    summary = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"{self.get_action_display()} by {self.user} on {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
