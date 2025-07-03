@@ -127,10 +127,19 @@ class EquipmentForm(forms.ModelForm):
     class Meta:
         model = Equipment
         fields = '__all__'  # Or explicitly list your fields
-    
-    
+    def image_tag(self):
+        return mark_safe('<img src="/equipments/media/%s" width="50" height="50" />' % self.user_image)   
 
+class EquipmentHistory(models.Model):
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='history')
+    previous_assigned_to = models.CharField(max_length=255, blank=True, null=True)
+    new_assigned_to = models.CharField(max_length=255, blank=True, null=True)  # NEW FIELD
+    previous_end_user = models.CharField(max_length=255, blank=True, null=True)
+    new_end_user = models.CharField(max_length=255, blank=True, null=True)      # NEW FIELD
+    changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    changed_at = models.DateTimeField(auto_now_add=True)
 
-
-    
-     
+class EquipmentForm(forms.ModelForm):
+    class Meta:
+        model = Equipment
+        fields = '__all__'  # Or explicitly list your fields

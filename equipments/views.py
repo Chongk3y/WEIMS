@@ -1,20 +1,25 @@
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.decorators.csrf import csrf_exempt
-from .models import Equipment, Category, Status
-from django.shortcuts import redirect, render, get_object_or_404
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
-from django.core.exceptions import ObjectDoesNotExist
-from django.contrib.auth.models import User, Group
-from django.db.models import Count
-import json
-from django.db.models import F, Q
-from django.contrib import messages
-from django.core.paginator import Paginator
+# Standard library imports
 import csv
-import openpyxl
+import json
 from datetime import datetime
+# Django core imports
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
 from django.utils import timezone
+from django.core.paginator import Paginator
+from django.db.models import Count, F, Q
+from django.core.exceptions import ObjectDoesNotExist
+# Django auth imports
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User, Group
+# Third-party imports
+import openpyxl
+# Local app imports
+from .models import Equipment, Category, Status
+from .models import EquipmentHistory
 
 
 
@@ -315,10 +320,13 @@ def edit_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
     categories = Category.objects.all()
     statuses = Status.objects.all()
-    from django.contrib.auth.models import User
     users = User.objects.all()
 
     if request.method == 'POST':
+        # Capture current values before changes
+        original_assigned_to = equipment.assigned_to
+        original_end_user = equipment.end_user
+
         equipment.item_propertynum = request.POST.get('item_propertynum')
         equipment.item_name = request.POST.get('item_name')
         equipment.item_desc = request.POST.get('item_desc')
@@ -337,9 +345,9 @@ def edit_equipment(request, id):
         equipment.fund_source = request.POST.get('fund_source')
         equipment.supplier = request.POST.get('supplier')
         equipment.item_amount = request.POST.get('item_amount')
-        equipment.assigned_to = request.POST.get('assigned_to')
+        equipment.assigned_to = request.POST.get('assigned_to') or None
         equipment.location = request.POST.get('location')
-        equipment.end_user = request.POST.get('end_user')
+        equipment.end_user = request.POST.get('end_user') or None
         equipment.emp_id = request.POST.get('emp_id')
         equipment.category_id = request.POST.get('category_id')
         equipment.status_id = request.POST.get('status_id')
@@ -348,7 +356,20 @@ def edit_equipment(request, id):
         if request.FILES.get('user_image'):
             equipment.user_image = request.FILES['user_image']
 
+        # Save equipment first
         equipment.save()
+
+        # ✅ Check for changes in assigned_to and end_user
+        if original_assigned_to != equipment.assigned_to or original_end_user != equipment.end_user:
+            EquipmentHistory.objects.create(
+                equipment=equipment,
+                previous_assigned_to=original_assigned_to,
+                new_assigned_to=equipment.assigned_to,  # Save new value
+                previous_end_user=original_end_user,
+                new_end_user=equipment.end_user,        # Save new value
+                changed_by=request.user
+            )
+
         return redirect('equipments:index')
 
     return render(request, 'equipments/edit.html', {
@@ -798,4 +819,17 @@ def unarchive_equipment(request, pk):
     eq.is_archived = False
     eq.save()
     return redirect('equipments:archived_equipments')
+
+@login_required
+def equipment_history_json(request, equipment_id):
+    history = EquipmentHistory.objects.filter(equipment_id=equipment_id).order_by('-changed_at')
+    data = [{
+        'previous_assigned_to': h.previous_assigned_to or '',
+        'new_assigned_to': h.new_assigned_to or '',
+        'previous_end_user': h.previous_end_user or '',
+        'new_end_user': h.new_end_user or '',
+        'changed_at': h.changed_at.strftime('%Y-%m-%d %H:%M'),
+        'changed_by': h.changed_by.get_full_name() or h.changed_by.username
+    } for h in history]
+    return JsonResponse(data, safe=False)
 

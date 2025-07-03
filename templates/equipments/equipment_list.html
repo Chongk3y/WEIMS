@@ -196,7 +196,13 @@
         <div class="row mb-3">
           <div class="col-md-4 text-center">
             <img id="modalImage" src="" class="img-fluid rounded shadow-sm" style="width: 120px; height: 120px; object-fit: cover;" alt="Equipment Image">
+            <div class="text-center mt-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#historyModal">
+                <i class="bi bi-clock-history"></i> View History
+              </button>
+            </div>
           </div>
+          
           <div class="col-md-8">
             <div class="row g-2">
               <div class="col-sm-6"><small class="text-muted">Property #</small><div id="modalPropertyNum" class="fw-medium"></div></div>
@@ -220,8 +226,24 @@
               <div class="col-sm-6"><small class="text-muted">Updated</small><div id="modalUpdated"></div></div>
               <div class="col-sm-6"><small class="text-muted">Updated By</small><div id="modalUpdatedBy"></div></div>
             </div>
+            
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="historyModalLabel">History</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="historyContent">
+        <p class="text-muted">Loading history...</p>
       </div>
     </div>
   </div>
@@ -560,6 +582,7 @@ columnTitles.forEach((title, idx) => {
         $('#modalCreatedBy').text(data.created_by);
         $('#modalUpdated').text(data.updated);
         $('#modalUpdatedBy').text(data.updated_by);
+        $('#equipmentModal').data('equipment-id', equipmentId); // <-- Add this line
         $('#equipmentModal').modal('show');
       });
   });
@@ -598,7 +621,27 @@ columnTitles.forEach((title, idx) => {
     $('#returnEquipmentId').val(eqId);
   });
   
-  
+    $('#historyModal').on('show.bs.modal', function () {
+    const equipmentId = $('#equipmentModal').data('equipment-id'); // Store this ID when opening modal
+    $('#historyContent').html('<p class="text-muted">Loading history...</p>');
+    
+    $.get(`/equipments/${equipmentId}/history/`, function (data) {
+      if (data.length === 0) {
+        $('#historyContent').html('<p class="text-muted">No history available.</p>');
+      } else {
+        const items = data.map(h => `
+          <div class="mb-2 small">
+            <div><strong>Assigned To:</strong> <span class="text-danger">${h.previous_assigned_to || 'None'}</span> <i class="bi bi-arrow-right"></i> <span class="text-success">${h.new_assigned_to || 'None'}</span></div>
+            <div><strong>End User:</strong> <span class="text-danger">${h.previous_end_user || 'None'}</span> <i class="bi bi-arrow-right"></i> <span class="text-success">${h.new_end_user || 'None'}</span></div>
+            <div class="text-muted"><small>${h.changed_at} by ${h.changed_by}</small></div>
+          </div>
+          <hr>
+        `).join('');
+        $('#historyContent').html(items);
+      }
+    });
+  });
+
 });
 </script>
 {% endblock %}
