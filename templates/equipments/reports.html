@@ -1,0 +1,194 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3 px-3">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h5 class="fw-semibold mb-0">📊 Equipment Reports</h5>
+    <div class="d-flex flex-wrap gap-2 ms-auto">
+      <a href="{% url 'equipments:export_csv' %}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-download"></i> CSV
+      </a>
+      
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="row gx-2 gy-2 align-items-center mb-3">
+    
+    <div class="col-md-3 col-sm-6">
+      <select id="categoryFilter" class="form-select form-select-sm">
+        <option value="">All Categories</option>
+        {% for category in categories %}
+          <option value="{{ category.name|escapejs }}">{{ category.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3 col-sm-6">
+      <select id="statusFilter" class="form-select form-select-sm">
+        <option value="">All Statuses</option>
+        {% for status in statuses %}
+          <option value="{{ status.name|escapejs }}">{{ status.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-2">
+      <div class="table-responsive">
+        <table id="reportTable" class="table compact-table table-striped table-hover w-100">
+          <thead>
+            <tr>
+              <th>Property #</th>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Amount</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in equipments %}
+            <tr 
+              data-reporttype="Equipment Report"
+              data-description="{{ item.item_desc|default_if_none:'None'|escapejs }}"
+              data-status="{{ item.status.name|escapejs }}"
+              data-submitted="{{ item.assigned_to|default:'—'|escapejs }}"
+              data-reportdate="{{ item.item_purdate|date:'M d, Y' }}"
+              data-updatedby="{{ item.updated_by|default:'—'|escapejs }}"
+              data-updatedat="{{ item.updated_at|date:'M d, Y H:i' }}"
+              data-hasattachment="{% if item.attachment %}Yes{% else %}No{% endif %}"
+              {% if item.attachment %}
+                data-attachment-url="{{ item.attachment.url|escapejs }}"
+              {% endif %}
+            >
+              <td>{{ item.item_propertynum }}</td>
+              <td>{{ item.item_name }}</td>
+              <td>{{ item.category.name }}</td>
+              <td>{{ item.status.name }}</td>
+              <td>₱{{ item.item_amount|floatformat:2|intcomma }}</td>
+              <td>
+                <button 
+                  type="button" 
+                  class="btn btn-sm btn-outline-primary view-details" 
+                  data-bs-toggle="modal" 
+                  data-bs-target="#reportDetailsModal"
+                  title="View Details"
+                >
+                  <i class="bi bi-eye"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="reportDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">📄 Report Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-bordered table-sm mb-0">
+          <tbody id="reportDetailsTableBody">
+            <!-- Populated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block custom_css %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<style>
+  .compact-table td, .compact-table th {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+    font-size: 0.85rem;
+  }
+  @media (max-width: 768px) {
+    .compact-table td, .compact-table th {
+      font-size: 0.75rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+
+<script>
+$(function () {
+  // Initialize DataTable with full pagination controls
+  const table = $('#reportTable').DataTable({
+    responsive: true,
+    pageLength: 5,
+    lengthMenu: [5, 10, 25, 50],
+    dom: 'lfrtip'  // l = length menu, f = filter, r = processing, t = table, i = info, p = pagination
+  });
+
+  // Global search
+  $('#reportSearch').on('keyup', function () {
+    table.search(this.value).draw();
+  });
+
+  // Category / Status filters
+  $('#categoryFilter, #statusFilter').on('change', function () {
+    const cat = $('#categoryFilter').val().toLowerCase();
+    const stat = $('#statusFilter').val().toLowerCase();
+    table.rows().every(function () {
+      const d = this.data();
+      const show = (!cat || d[2].toLowerCase().includes(cat)) &&
+                   (!stat || d[3].toLowerCase().includes(stat));
+      $(this.node()).toggle(show);
+    });
+    // redraw to update pagination after hide/show
+    table.draw(false);
+  });
+
+  // Modal population
+  $('#reportDetailsModal').on('show.bs.modal', function (evt) {
+    const button = evt.relatedTarget;
+    const row = $(button).closest('tr');
+    const get = key => row.data(key) || '—';
+
+    const details = [
+      ['Report Type',   get('reporttype')],
+      ['Description',   get('description')],
+      ['Status',        get('status')],
+      ['Submitted By',  get('submitted')],
+      ['Report Date',   get('reportdate')],
+      ['Updated By',    get('updatedby')],
+      ['Updated Time',  get('updatedat')],
+      ['Has Attachment?', get('hasattachment')]
+    ];
+
+    if (row.data('attachment-url')) {
+      details.push(['Attachment', `<a href="${row.data('attachment-url')}" target="_blank">View File</a>`]);
+    }
+
+    const $tbody = $('#reportDetailsTableBody').empty();
+    details.forEach(([label, val]) => {
+      $tbody.append(`<tr><th style="width: 30%">${label}</th><td>${val}</td></tr>`);
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -978,6 +978,19 @@ def history_logs(request):
     logs = EquipmentActionLog.objects.select_related('user', 'equipment').order_by('-timestamp')[:500]  # Limit for performance
     return render(request, 'equipments/history_logs.html', {'logs': logs})
 
+
+@login_required
+def reports_view(request):
+    equipments = Equipment.objects.select_related('category', 'status').all()
+    categories = Category.objects.all()
+    statuses = Status.objects.all()
+    return render(request, 'equipments/reports.html', {
+        'equipments': equipments,
+        'categories': categories,
+        'statuses': statuses,
+    })
+
+
 @login_required
 @user_passes_test(is_admin_superadmin_encoder)
 def clear_history_logs(request):

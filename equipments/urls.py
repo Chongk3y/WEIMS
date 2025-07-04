@@ -2,6 +2,7 @@ from django.urls import path
 from django.conf import settings
 from . import views
 from django.conf.urls.static import static
+from equipments import views 
 
 app_name = 'equipments'
 urlpatterns = [
@@ -37,7 +38,7 @@ urlpatterns = [
     path('<int:equipment_id>/history/', views.equipment_history_json, name='equipment_history_json'),
     path('history-logs/', views.history_logs, name='history_logs'),
     path('history/clear/', views.clear_history_logs, name='clear_history_logs'),
-
+    path('reports/', views.reports_view, name='reports'),
 
 
 

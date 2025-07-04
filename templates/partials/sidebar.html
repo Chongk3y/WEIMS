@@ -35,7 +35,10 @@
   </a>
 
 
-  <a href="#" class="nav-link"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+<a href="{% url 'equipments:reports' %}" class="nav-link {% if request.resolver_match.url_name == 'reports' %}active{% endif %}">
+  <i class="bi bi-file-earmark-bar-graph"></i> Reports
+</a>
+
 
   <a class="nav-link d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#settings-collapse" role="button" aria-expanded="false" aria-controls="settings-collapse">
     ⚙️ Settings
