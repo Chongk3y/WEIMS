@@ -8,119 +8,116 @@
   {% endfor %}
 {% endif %}
 
-<div class="container-fluid py-2 px-3">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-semibold mb-0">📋 Equipment Management</h5>
-  </div>
-
-  <!-- Combined Toolbar Row -->
-  <div class="row gx-2 gy-1 align-items-center ">
-
-    <!-- Search Bar -->
-    <div class="col-md-3">
-      <input type="text" id="tableSearch" class="form-control form-control-sm" placeholder="Search equipment...">
+<div class="m-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-semibold mb-0">📋 Equipment Management</h5>
     </div>
 
-      <!-- Status Dropdown -->
-      <div class="col-md-2">
-        <select name="status_id" form="bulkUpdateForm" class="form-select form-select-sm">
-          <option value="">Change Status...</option>
-          {% for status in statuses %}
-            <option value="{{ status.id }}">{{ status.name }}</option>
-          {% endfor %}
-        </select>
+    <!-- Combined Toolbar Row -->
+    <div class="row gx-2 gy-1 align-items-center ">
+
+      <!-- Search Bar -->
+      <div class="col-md-3">
+        <input type="text" id="tableSearch" class="form-control form-control-sm" placeholder="Search equipment...">
       </div>
 
-      <!-- Category Dropdown -->
-      <div class="col-md-2">
-        <select name="category_id" form="bulkUpdateForm" class="form-select form-select-sm">
-          <option value="">Change Category...</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}">{{ category.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
+        <!-- Status Dropdown -->
+        <div class="col-md-auto">
+          <select name="status_id" form="bulkUpdateForm" class="form-select form-select-sm">
+            <option value="">Change Status...</option>
+            {% for status in statuses %}
+              <option value="{{ status.id }}">{{ status.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-      <!-- Apply to Selected Button -->
-      <div class="col-md-2">
-        <form id="bulkUpdateForm" method="post" action="{% url 'equipments:bulk_update' %}">
-          {% csrf_token %}
-          <button type="submit" class="btn btn-outline-primary btn-sm w-100">Apply to Selected</button>
-        </form>
-      </div>
+        <!-- Category Dropdown -->
+        <div class="col-md-auto">
+          <select name="category_id" form="bulkUpdateForm" class="form-select form-select-sm">
+            <option value="">Change Category...</option>
+            {% for category in categories %}
+              <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-      <!-- Advanced Filter Button -->
-      <div class="col-md-auto">
-        <button type="button" class="btn btn-outline-dark btn-sm w-100" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
-          <i class="bi bi-funnel"></i> Filter
-        </button>
-      </div>
+        <!-- Apply to Selected Button -->
+        <div class="col-md-auto">
+          <form id="bulkUpdateForm" method="post" action="{% url 'equipments:bulk_update' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-primary btn-sm w-100">Apply to Selected</button>
+          </form>
+        </div>
 
-      {% if is_admin or is_encoder %}
-      <!-- Import Excel Button -->
-      <div class="col-md-auto">
-        <form action="{% url 'equipments:import_excel' %}" method="post" enctype="multipart/form-data" id="importExcelForm">
-          {% csrf_token %}
-          <input type="file" name="excel_file" accept=".xlsx,.xls" style="display:none;" id="importExcelInput" onchange="this.form.submit()">
-          <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="document.getElementById('importExcelInput').click();">
-            <i class="bi bi-upload"></i> Import
+        <!-- Advanced Filter Button -->
+        <div class="col-md-auto">
+          <button type="button" class="btn btn-outline-dark btn-sm w-100" data-bs-toggle="modal" data-bs-target="#advancedFilterModal">
+            <i class="bi bi-funnel"></i> Filter
           </button>
-        </form>
-      </div>
+        </div>
 
-      <!-- Print Button -->
-      <div class="col-md-auto">
-        <button type="button" onclick="window.print()" class="btn btn-outline-secondary btn-sm w-100">
-          <i class="bi bi-printer"></i>
-        </button>
-      </div>
+        {% if is_admin or is_encoder %}
+        <!-- Import Excel Button -->
+        <div class="col-md-auto">
+          <form action="{% url 'equipments:import_excel' %}" method="post" enctype="multipart/form-data" id="importExcelForm">
+            {% csrf_token %}
+            <input type="file" name="excel_file" accept=".xlsx,.xls" style="display:none;" id="importExcelInput" onchange="this.form.submit()">
+            <button type="button" class="btn btn-outline-primary btn-sm w-100" onclick="document.getElementById('importExcelInput').click();">
+              <i class="bi bi-upload"></i> Import
+            </button>
+          </form>
+        </div>
 
-      <!-- Add Equipment Button -->
-      <div class="col-md-auto">
-        <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm w-100">
-          <i class="bi bi-plus-circle small"></i> Add
-        </a>
-      </div>
-      {% endif %}
+        <!-- Add Equipment Button -->
+        <div class="col-md-auto">
+          <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm w-100">
+            <i class="bi bi-plus-circle small"></i> Add
+          </a>
+        </div>
+        {% endif %}
+        
+        <div class="col-md-auto">
+          <button id="toggleOrderBtn" class="btn btn-outline-secondary btn-sm ms-2">
+            Show Oldest First
+          </button>
+        </div>
+
+        <div class="dropdown col-md-auto">
+          <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="columnVisibilityDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+            Columns
+          </button>
+          <ul class="dropdown-menu" aria-labelledby="columnVisibilityDropdown" id="columnVisibilityMenu">
+            <!-- JS will populate this -->
+          </ul>
+        </div>
     </div>
 
-    <div class="dropdown mb-2">
-      <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" id="columnVisibilityDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-        Columns
-      </button>
-      <ul class="dropdown-menu" aria-labelledby="columnVisibilityDropdown" id="columnVisibilityMenu">
-        <!-- JS will populate this -->
-      </ul>
+    <!-- Equipment Table -->
+      <div class="card shadow-sm border-0 ">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table id="equipmentTable" class="table ...">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="selectAll"></th>
+                  <th style="display:none;"></th> <!-- Hidden ID column -->
+                  <th>Image</th>
+                  <th>Property #</th>
+                  <th>Name</th>
+                  <th>Description</th>
+                  <th>PO Number</th>
+                  <th>Amount</th>
+                  <th>End User</th>
+                  <th>Category</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
     </div>
-  </div>
-
-
-  <!-- Equipment Table -->
-  <div class="card shadow-sm border-0">
-    <div class="card-body p-2">
-      <div class="table-responsive">
-        <table id="equipmentTable" class="table ...">
-          <thead>
-            <tr>
-              <th><input type="checkbox" id="selectAll"></th>
-              <th style="display:none;"></th> <!-- Hidden ID column -->
-              <th>Image</th>
-              <th>Property #</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th>PO Number</th>
-              <th>Amount</th>
-              <th>End User</th>
-              <th>Category</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- Place this at the end of your file, outside any <table> or <form> -->
@@ -142,6 +139,14 @@
           <div class="mb-3">
             <label for="returnRemarks" class="form-label">Remarks</label>
             <textarea class="form-control" id="returnRemarks" name="return_remarks" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="returnedBy" class="form-label">Returned By</label>
+            <input type="text" class="form-control" id="returnedBy" name="returned_by" required>
+          </div>
+          <div class="mb-3">
+            <label for="received_by" class="form-label">Received By</label>
+            <input type="text" class="form-control" id="returnedTo" name="received_by" required>
           </div>
           <div class="mb-3">
             <label for="returnCondition" class="form-label">Condition Upon Return</label>
@@ -184,7 +189,13 @@
         <div class="row mb-3">
           <div class="col-md-4 text-center">
             <img id="modalImage" src="" class="img-fluid rounded shadow-sm" style="width: 120px; height: 120px; object-fit: cover;" alt="Equipment Image">
+            <div class="text-center mt-2">
+              <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#historyModal">
+                <i class="bi bi-clock-history"></i> View Edit History
+              </button>
+            </div>
           </div>
+          
           <div class="col-md-8">
             <div class="row g-2">
               <div class="col-sm-6"><small class="text-muted">Property #</small><div id="modalPropertyNum" class="fw-medium"></div></div>
@@ -208,6 +219,7 @@
               <div class="col-sm-6"><small class="text-muted">Updated</small><div id="modalUpdated"></div></div>
               <div class="col-sm-6"><small class="text-muted">Updated By</small><div id="modalUpdatedBy"></div></div>
             </div>
+            
           </div>
         </div>
       </div>
@@ -215,7 +227,24 @@
   </div>
 </div>
 
+<!-- History Modal -->
+<div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg"> <!-- Changed from modal-sm to modal-lg -->
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="historyModalLabel">Edit History</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="historyContent" style="max-height: 65vh; overflow-y: auto;">
+        <p class="text-muted">Loading history...</p>
+        <!-- You can inject table or content dynamically here -->
+      </div>
+    </div>
+  </div>
+</div>
 
+
+<!-- Advanced Filter -->
 <div class="modal fade" id="advancedFilterModal" tabindex="-1" aria-labelledby="advancedFilterLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
@@ -235,8 +264,6 @@
     </div>
   </div>
 </div>
-
-
 
 
 <!-- Compact Table Style -->
@@ -331,10 +358,13 @@ table = $('#equipmentTable').DataTable({
   dom: 'lrtip',
   serverSide: true,
   processing: true,
+  order: [[1, 'desc']],
   // stateSave: true,
+  
   ajax: {
     url: '/equipments/equipment/table/json/',
     type: 'GET',
+    
     data: function (d) {
       // Gather all filters
       $('.filter-row').each(function () {
@@ -366,6 +396,19 @@ table = $('#equipmentTable').DataTable({
   ],
   pageLength: 10
 });
+
+  let orderDesc = true; // Track current order
+
+  $('#toggleOrderBtn').on('click', function () {
+    if (orderDesc) {
+      table.order([1, 'asc']).draw(); // Oldest first
+      $(this).text('Show Newest First');
+    } else {
+      table.order([1, 'desc']).draw(); // Newest first
+      $(this).text('Show Oldest First');
+    }
+    orderDesc = !orderDesc;
+  });
 
 // Column titles in order (match your DataTable columns)
 const columnTitles = [
@@ -534,6 +577,7 @@ columnTitles.forEach((title, idx) => {
         $('#modalCreatedBy').text(data.created_by);
         $('#modalUpdated').text(data.updated);
         $('#modalUpdatedBy').text(data.updated_by);
+        $('#equipmentModal').data('equipment-id', equipmentId); // <-- Add this line
         $('#equipmentModal').modal('show');
       });
   });
@@ -572,7 +616,48 @@ columnTitles.forEach((title, idx) => {
     $('#returnEquipmentId').val(eqId);
   });
   
-  
+    $('#historyModal').on('show.bs.modal', function () {
+    const equipmentId = $('#equipmentModal').data('equipment-id'); // Store this ID when opening modal
+    $('#historyContent').html('<p class="text-muted">Loading history...</p>');
+    
+    $.get(`/equipments/${equipmentId}/history/`, function (data) {
+      if (!data || data.length === 0) {
+        $('#historyContent').html('<p class="text-muted">No history available.</p>');
+      } else {
+        // Build a table for the new structure
+        let tableHtml = `
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Date</th>
+                  <th>Action</th>
+                  <th>Field</th>
+                  <th>Old Value</th>
+                  <th>New Value</th>
+                  <th>Changed By</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+        data.forEach(h => {
+          tableHtml += `
+            <tr>
+              <td>${h.changed_at}</td>
+              <td>${h.action}</td>
+              <td>${h.field_changed}</td>
+              <td class="text-danger">${h.old_value || 'None'}</td>
+              <td class="text-success">${h.new_value || 'None'}</td>
+              <td>${h.changed_by}</td>
+            </tr>
+          `;
+        });
+        tableHtml += '</tbody></table></div>';
+        $('#historyContent').html(tableHtml);
+      }
+    });
+  });
+
 });
 </script>
 {% endblock %}

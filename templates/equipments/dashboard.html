@@ -3,6 +3,21 @@
 {% load static %}
 
 {% block content %}
+<style>
+  /* Uniform chart card and canvas sizing */
+  .dashboard-chart-card .card-body {
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dashboard-chart-card canvas {
+    width: 100% !important;
+    height: 180px !important;
+    max-width: 100%;
+    max-height: 180px;
+  }
+</style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <div class="container-fluid py-3 px-3">
@@ -21,7 +36,22 @@
         </div>
       </div>
     </div>
-
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 text-center">
+        <div class="card-body p-2">
+          <small class="text-muted">Archived</small>
+          <h5 class="fw-bold text-danger">{{ total_archived }}</h5>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div class="card shadow-sm border-0 text-center">
+        <div class="card-body p-2">
+          <small class="text-muted">Returned</small>
+          <h5 class="fw-bold text-success">{{ total_returned }}</h5>
+        </div>
+      </div>
+    </div>
     {% for status in status_counts %}
     <div class="col-6 col-md-3">
       <div class="card shadow-sm border-0 text-center">
@@ -37,7 +67,7 @@
   <!-- Charts and Recent -->
   <div class="row mt-4 g-3">
     <!-- Recent -->
-    <div class="col-md-6">
+    <div class="col-md-4">
       <div class="card shadow-sm border-0">
         <div class="card-header py-2 bg-light">
           <small class="fw-semibold">🕒 Recent Equipments</small>
@@ -62,24 +92,51 @@
       </div>
     </div>
 
-    <!-- Chart -->
-    <div class="col-md-6">
-      <div class="card shadow-sm border-0">
+    <!-- Category Bar Chart -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
         <div class="card-header py-2 bg-light">
           <small class="fw-semibold">📂 By Category</small>
         </div>
         <div class="card-body p-2">
-          <canvas id="categoryChart" height="140"></canvas>
+          <canvas id="categoryChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Pie Chart -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">📊 By Status</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="statusChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monthly Line Chart -->
+  <div class="row mt-4 g-3">
+    <div class="col-md-12">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">📈 Equipments Added Per Month</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="monthlyChart"></canvas>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Chart Script -->
+<!-- Chart Scripts -->
 <script>
-  const ctx = document.getElementById('categoryChart').getContext('2d');
-  new Chart(ctx, {
+  // Category Bar Chart
+  const ctxCategory = document.getElementById('categoryChart').getContext('2d');
+  new Chart(ctxCategory, {
     type: 'bar',
     data: {
       labels: {{ category_labels|safe }},
@@ -91,6 +148,53 @@
       }]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // Status Pie Chart
+  const ctxStatus = document.getElementById('statusChart').getContext('2d');
+  new Chart(ctxStatus, {
+    type: 'pie',
+    data: {
+      labels: {{ status_labels|safe }},
+      datasets: [{
+        label: 'By Status',
+        data: {{ status_data|safe }},
+        backgroundColor: [
+          '#0e4a39', '#198754', '#ffc107', '#dc3545', '#6c757d', '#0d6efd', '#6610f2', '#fd7e14', '#20c997', '#e83e8c'
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } }
+    }
+  });
+
+  // Monthly Line Chart
+  const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
+  new Chart(ctxMonthly, {
+    type: 'line',
+    data: {
+      labels: {{ month_labels|safe }},
+      datasets: [{
+        label: 'Added',
+        data: {{ month_data|safe }},
+        fill: false,
+        borderColor: '#0e4a39',
+        tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
       plugins: { legend: { display: false } },
       scales: {
         y: { beginAtZero: true, ticks: { stepSize: 1 } }

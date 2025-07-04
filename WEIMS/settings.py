@@ -81,10 +81,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'weimsapp',
-        'USERNAME': 'root',
-        'PASSWORD': '',
+        'USER': 'root',        # ✅ Correct key
+        'PASSWORD': '',        # Leave blank if MySQL root has no password
+        'HOST': '127.0.0.1',   # or 'localhost'
         'PORT': '3306',
-        'HOST': 'localhost',
     }
 }
 
@@ -117,7 +117,7 @@ TIME_ZONE = 'Asia/Manila'
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)

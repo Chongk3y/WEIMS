@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Equipment History Logs{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4 px-4">
+  <h4 class="fw-semibold mb-0">Equipment History Logs</h4>
+  <div class="table-responsive">
+    <div class="d-flex justify-content-end mb-5">
+    <form method="post" action="{% url 'equipments:clear_history_logs' %}" onsubmit="return confirm('Are you sure you want to clear all history logs?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger btn-sm">Clear History Log</button>
+    </form>
+    </div>
+    <table class="table table-striped table-bordered" id="logsTable">
+      <thead>
+        <tr>
+          <th>Date/Time</th>
+          <th>User</th>
+          <th>Action</th>
+          <th>Equipment</th>
+          <th>Summary</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td>{{ log.timestamp|date:"Y-m-d H:i" }}</td>
+          <td>{{ log.user.get_full_name|default:log.user.username|default:"System" }}</td>
+          <td>{{ log.get_action_display }}</td>
+          <td>
+            {% if log.equipment %}
+              {{ log.equipment.item_name }}<br>
+              <small class="text-muted">#{{ log.equipment.item_propertynum }}</small>
+            {% else %}``
+              <span class="text-muted">[Deleted]</span>
+            {% endif %}
+          </td>
+          <td>{{ log.summary }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<!-- Optional: DataTables for search/sort -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+  $('#logsTable').DataTable({
+    order: [[0, 'desc']]
+  });
+});
+</script>
+{% endblock %}

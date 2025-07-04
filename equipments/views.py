@@ -1,19 +1,29 @@
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.decorators.csrf import csrf_exempt
-from .models import Equipment, Category, Status
-from django.shortcuts import redirect, render, get_object_or_404
-from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
-from django.core.exceptions import ObjectDoesNotExist
-from django.contrib.auth.models import User, Group
-from django.db.models import Count
-import json
-from django.db.models import F, Q
-from django.contrib import messages
-from django.core.paginator import Paginator
+# Standard library imports
 import csv
-import openpyxl
+import json
 from datetime import datetime
+# Django core imports
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+from django.utils import timezone
+from django.core.paginator import Paginator
+from django.db.models import Count, F, Q
+from django.core.exceptions import ObjectDoesNotExist
+# Django auth imports
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User, Group
+# Third-party imports
+import openpyxl
+from django.db.models.functions import TruncMonth
+
+# Local app imports
+from .models import Equipment, Category, Status
+from .models import EquipmentHistory
+from .models import EquipmentActionLog
+
 
 
 def is_admin(user):
@@ -25,13 +35,12 @@ def is_encoder(user):
 def is_client(user):
     return user.groups.filter(name='Client').exists()
 
-def is_admin_or_encoder(user):
-    return user.groups.filter(name__in=['Admin', 'Encoder']).exists()
+def is_admin_or_superadmin(user):
+    return user.is_superuser or user.groups.filter(name='Admin').exists()
 
 def is_admin_superadmin_encoder(user):
-    return (
-        user.groups.filter(name__in=["Admin", "Superadmin", "Encoder"]).exists()
-    )
+    return user.is_superuser or user.groups.filter(name__in=['Admin', 'Encoder']).exists()
+
 
 
 @login_required
@@ -41,9 +50,12 @@ def equipment_table_json(request):
     length = int(request.GET.get('length', 10))
     search_value = request.GET.get('search[value]', '')
 
-    qs = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp')
+    # Initial queryset
+    qs = Equipment.objects.filter(is_returned=False, is_archived=False).select_related('category', 'status', 'emp')
 
-    # Handle global search
+
+
+    # Global search
     if search_value:
         qs = qs.filter(
             Q(item_propertynum__icontains=search_value) |
@@ -52,11 +64,11 @@ def equipment_table_json(request):
             Q(category__name__icontains=search_value) |
             Q(status__name__icontains=search_value)
         )
-    # Handle advanced filters
+
+    # Advanced filters
     for key, value in request.GET.items():
         if key.startswith('filter_col_') and value:
             col_idx = key.replace('filter_col_', '')
-            # Map col_idx to field name
             if col_idx == '2':  # Property #
                 qs = qs.filter(item_propertynum__icontains=value)
             elif col_idx == '3':  # Name
@@ -70,14 +82,30 @@ def equipment_table_json(request):
             elif col_idx == '7':  # Status
                 qs = qs.filter(status__name=value)
 
+    # Sorting
+    order_col = request.GET.get('order[0][column]', '1')
+    order_dir = request.GET.get('order[0][dir]', 'desc')
+
+    col_map = {
+        '1': 'id',
+        '3': 'item_propertynum',
+        '4': 'item_name',
+        '5': 'item_desc',
+        '6': 'po_number',
+        '7': 'item_amount',
+        '8': 'end_user',
+        '9': 'category__name',
+        '10': 'status__name',
+    }
+
+    order_field = col_map.get(order_col, 'id')
+    if order_dir == 'desc':
+        order_field = '-' + order_field
+
     total = Equipment.objects.filter(is_returned=False).count()
     filtered = qs.count()
-    equipments = qs.order_by('-item_purdate')[start:start+length]
 
-
-    total = Equipment.objects.filter(is_returned=False).count()
-    filtered = qs.count()
-    equipments = qs.order_by('-item_purdate')[start:start+length]
+    equipments = qs.order_by(order_field)[start:start + length]
 
     data = []
     for eq in equipments:
@@ -97,23 +125,29 @@ def equipment_table_json(request):
                 <i class="bi bi-trash"></i> Delete
             </a>
             </li>
+            <li>
+            <a class="dropdown-item" href="/equipments/archive/{eq.id}/" onclick="return confirm('Archive this equipment?');">
+                <i class="bi bi-archive"></i> Archive
+            </a>
+            </li>
             {f'''
             <li>
             <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
-            <i class="bi bi-arrow-90deg-left"></i> Return
+                <i class="bi bi-arrow-90deg-left"></i> Return
             </button>
             </li>
             ''' if not eq.is_returned else ''}
         </ul>
         </div>
         '''
+
         data.append([
-            '',  # 0: Placeholder for checkbox
+            '',  # 0: Checkbox placeholder
             eq.id,  # 1: hidden ID
             f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',
             eq.item_propertynum,
             eq.item_name,
-            eq.item_desc if eq.item_desc is not None else 'None',
+            eq.item_desc if eq.item_desc else 'None',
             eq.po_number if eq.po_number else 'None',
             f'₱{eq.item_amount:,.2f}',
             eq.end_user if eq.end_user else 'None',
@@ -122,13 +156,13 @@ def equipment_table_json(request):
             actions
         ])
 
-
     return JsonResponse({
         'draw': draw,
         'recordsTotal': total,
         'recordsFiltered': filtered,
         'data': data,
     })
+
 
 @login_required
 def equipment_detail_json(request, pk):
@@ -162,7 +196,7 @@ def equipment_detail_json(request, pk):
     return JsonResponse(data)
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def index(request):
     equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
     categories = Category.objects.all()
@@ -204,7 +238,7 @@ def index(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def add_equipment(request):
     users = User.objects.all()
     categories = Category.objects.all()
@@ -220,7 +254,7 @@ def add_equipment(request):
     })
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def processaddequipment(request):
     errors = {}
     values = request.POST
@@ -239,6 +273,7 @@ def processaddequipment(request):
         category_id = request.POST.get('category_id')
         status_id = request.POST.get('status_id')
         user_image = request.FILES.get('user_image', 'equipment_pic/image.jpg')
+        order_receipt = request.FILES.get('order_receipt', None)
 
         # Field validations (keep as is)
         # ...existing validation code...
@@ -276,21 +311,45 @@ def processaddequipment(request):
                 category_id=category_id,
                 status_id=status_id,
                 created_by=request.user,
-                updated_by=request.user
+                updated_by=request.user,
+                order_receipt=order_receipt 
             )
             equipment.save()
+            EquipmentActionLog.objects.create(
+            equipment=equipment,
+            action='create',
+            user=request.user,
+            summary=f"Created equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
+)
             return HttpResponseRedirect('/equipments/')
       
 @login_required 
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def edit_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
     categories = Category.objects.all()
     statuses = Status.objects.all()
-    from django.contrib.auth.models import User
     users = User.objects.all()
 
     if request.method == 'POST':
+        # Capture current values before changes
+        original = {
+            'item_propertynum': equipment.item_propertynum,
+            'item_name': equipment.item_name,
+            'item_desc': equipment.item_desc,
+            'item_purdate': equipment.item_purdate,
+            'po_number': equipment.po_number,
+            'fund_source': equipment.fund_source,
+            'supplier': equipment.supplier,
+            'item_amount': equipment.item_amount,
+            'assigned_to': equipment.assigned_to,
+            'location': equipment.location,
+            'end_user': equipment.end_user,
+            'emp_id': equipment.emp_id,
+            'category_id': equipment.category_id,
+            'status_id': equipment.status_id,
+        }
+
         equipment.item_propertynum = request.POST.get('item_propertynum')
         equipment.item_name = request.POST.get('item_name')
         equipment.item_desc = request.POST.get('item_desc')
@@ -309,9 +368,9 @@ def edit_equipment(request, id):
         equipment.fund_source = request.POST.get('fund_source')
         equipment.supplier = request.POST.get('supplier')
         equipment.item_amount = request.POST.get('item_amount')
-        equipment.assigned_to = request.POST.get('assigned_to')
+        equipment.assigned_to = request.POST.get('assigned_to') or None
         equipment.location = request.POST.get('location')
-        equipment.end_user = request.POST.get('end_user')
+        equipment.end_user = request.POST.get('end_user') or None
         equipment.emp_id = request.POST.get('emp_id')
         equipment.category_id = request.POST.get('category_id')
         equipment.status_id = request.POST.get('status_id')
@@ -320,7 +379,85 @@ def edit_equipment(request, id):
         if request.FILES.get('user_image'):
             equipment.user_image = request.FILES['user_image']
 
+        # Save equipment first
         equipment.save()
+        EquipmentActionLog.objects.create(
+            equipment=equipment,
+            action='edit',
+            user=request.user,
+            summary=f"Edited equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
+        )
+
+        field_labels = {
+            'item_propertynum': 'Property #',
+            'item_name': 'Name',
+            'item_desc': 'Description',
+            'item_purdate': 'Purchase Date',
+            'po_number': 'PO Number',
+            'fund_source': 'Fund Source',
+            'supplier': 'Supplier',
+            'item_amount': 'Amount',
+            'assigned_to': 'Assigned To',
+            'location': 'Location',
+            'end_user': 'End User',
+            'emp_id': 'Employee',
+            'category_id': 'Category',
+            'status_id': 'Status',
+        }
+        for field, old in original.items():
+            new = getattr(equipment, field)
+            # For ForeignKeys, get display value
+            if field == 'category_id' and old != new:
+                old_val = str(Category.objects.get(pk=old).name) if old else ''
+                new_val = str(equipment.category.name) if equipment.category else ''
+            elif field == 'status_id' and old != new:
+                old_val = str(Status.objects.get(pk=old).name) if old else ''
+                new_val = str(equipment.status.name) if equipment.status else ''
+            elif field == 'emp_id' and old != new:
+                old_val = str(User.objects.get(pk=old).get_full_name()) if old else ''
+                new_val = str(equipment.emp.get_full_name()) if equipment.emp else ''
+            elif field == 'item_purdate' and old != new:
+                old_val = old.strftime('%Y-%m-%d') if old else ''
+                new_val = new.strftime('%Y-%m-%d') if new else ''
+            elif field == 'item_amount':
+                try:
+                    old_val = float(old) if old not in (None, '', 'None') else 0.0
+                except Exception:
+                    old_val = 0.0
+                try:
+                    new_val = float(new) if new not in (None, '', 'None') else 0.0
+                except Exception:
+                    new_val = 0.0
+                old_val_str = f"₱{old_val:,.2f}" if old not in ('', None, 'None') else ''
+                new_val_str = f"₱{new_val:,.2f}" if new not in ('', None, 'None') else ''
+                if old_val != new_val:
+                    EquipmentHistory.objects.create(
+                        equipment=equipment,
+                        field_changed=field_labels.get(field, field),
+                        old_value=old_val_str,
+                        new_value=new_val_str,
+                        action='Edited',
+                        changed_by=request.user
+                    )
+                continue
+            else:
+                # Normalize for text fields: treat None, '', and 'None' as equivalent, and strip whitespace
+                def norm(val):
+                    if val is None or val == '' or str(val).strip().lower() == 'none':
+                        return ''
+                    return str(val).strip()
+                old_val = norm(old)
+                new_val = norm(new)
+            if old_val != new_val:
+                EquipmentHistory.objects.create(
+                    equipment=equipment,
+                    field_changed=field_labels.get(field, field),
+                    old_value=old_val,
+                    new_value=new_val,
+                    action='Edited',
+                    changed_by=request.user
+                )
+
         return redirect('equipments:index')
 
     return render(request, 'equipments/edit.html', {
@@ -331,9 +468,20 @@ def edit_equipment(request, id):
     })
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(is_admin_or_superadmin)
 def delete_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
+    item_name = equipment.item_name
+    item_propertynum = equipment.item_propertynum
+    # Log the delete action before deleting equipment and logs
+    EquipmentActionLog.objects.create(
+        equipment=equipment,
+        action='delete',
+        user=request.user,
+        summary=f"Deleted equipment: {item_name} (Property #: {item_propertynum})"
+    )
+    # Delete related action logs
+    EquipmentActionLog.objects.filter(equipment_id=equipment.id).delete()
     equipment.delete()
     return redirect('equipments:index')
 
@@ -341,37 +489,60 @@ def delete_equipment(request, id):
 @login_required
 def dashboard(request):
     total_equipments = Equipment.objects.count()
-    status_counts = []
-    for status in Status.objects.all():
-        count = Equipment.objects.filter(status=status).count()
-        status_counts.append({'name': status.name, 'count': count})
-    return render(request, 'equipments/dashboard.html', {
-        'total_equipments': total_equipments,
-        'status_counts': status_counts,
-    })
+    total_archived = Equipment.objects.filter(is_archived=True).count()
+    total_returned = Equipment.objects.filter(is_returned=True).count()
 
-@login_required
-def dashboard(request):
-    total_equipments = Equipment.objects.count()
-
+    # Status counts for pie chart
     status_counts = Equipment.objects.values('status__name').annotate(
         name=F('status__name'), count=Count('id')
     )
+    status_labels = [s['name'] for s in status_counts]
+    status_data = [s['count'] for s in status_counts]
 
-    recent_equipments = Equipment.objects.order_by('-id')[:5]
-
+    # Category counts for bar chart
     categories = Category.objects.annotate(count=Count('equipment'))
     category_labels = [cat.name for cat in categories]
     category_counts = [cat.count for cat in categories]
 
+    # Recent equipments
+    recent_equipments = Equipment.objects.order_by('-id')[:5]
+
+    # Equipments added per month (last 12 months)
+    from datetime import timedelta
+    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    months = [today.replace(day=1)]
+    for _ in range(11):
+        prev = months[-1]
+        year = prev.year - 1 if prev.month == 1 else prev.year
+        month = 12 if prev.month == 1 else prev.month - 1
+        # Handle months with fewer days (e.g., Feb)
+        try:
+            months.append(prev.replace(year=year, month=month, day=1))
+        except ValueError:
+            months.append((prev - timedelta(days=1)).replace(day=1))
+    months = sorted(months)
+    monthly_counts = Equipment.objects.filter(
+        created_at__gte=months[0]
+    ).annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
+    month_labels = [m.strftime('%b %Y') for m in months]
+    month_data = []
+    month_map = {m['month'].strftime('%b %Y'): m['count'] for m in monthly_counts}
+    for label in month_labels:
+        month_data.append(month_map.get(label, 0))
+
     context = {
         'total_equipments': total_equipments,
+        'total_archived': total_archived,
+        'total_returned': total_returned,
         'status_counts': status_counts,
-        'recent_equipments': recent_equipments,
+        'status_labels': status_labels,
+        'status_data': status_data,
         'category_labels': json.dumps(category_labels),
         'category_counts': json.dumps(category_counts),
+        'recent_equipments': recent_equipments,
+        'month_labels': json.dumps(month_labels),
+        'month_data': json.dumps(month_data),
     }
-
     return render(request, 'equipments/dashboard.html', context)
 
 @login_required
@@ -556,7 +727,7 @@ def export_csv(request):
 
 
 @login_required
-@user_passes_test(is_admin_or_encoder)
+@user_passes_test(is_admin_superadmin_encoder)
 def import_excel(request):
     if request.method == 'POST' and request.FILES.get('excel_file'):
         excel_file = request.FILES['excel_file']
@@ -567,9 +738,12 @@ def import_excel(request):
             try:
                 # Convert empty strings to None for all fields
                 cleaned_row = [cell if cell not in ('', None) else None for cell in row]
-
+                propertynum = cleaned_row[0]
+                # Skip if property number exists and is already in DB (ignore if blank)
+                if propertynum and Equipment.objects.filter(item_propertynum=propertynum).exists():
+                    continue
                 Equipment.objects.create(
-                    item_propertynum=cleaned_row[0],
+                    item_propertynum=propertynum,
                     item_name=cleaned_row[1],
                     item_desc=cleaned_row[2],
                     additional_info=(cleaned_row[3][:300] if cleaned_row[3] else None),
@@ -604,7 +778,6 @@ def parse_date(val):
     except Exception:
         return None  # or raise
 
-
 @require_POST
 @login_required
 def bulk_update_equipment(request):
@@ -625,12 +798,56 @@ def bulk_update_equipment(request):
         qs.update(**updates)
     return JsonResponse({'success': True})
 
-
 @login_required
 def returned(request):
     equipments = Equipment.objects.filter(is_returned=True)
     return render(request, 'equipments/returned.html', {'equipments': equipments})
 
+
+@login_required
+def returned_equipment_table_json(request):
+    draw = int(request.GET.get('draw', 1))
+    start = int(request.GET.get('start', 0))
+    length = int(request.GET.get('length', 10))
+    search_value = request.GET.get('search[value]', '')
+
+    qs = Equipment.objects.filter(is_returned=True).select_related('category', 'status', 'emp')
+
+    if search_value:
+        qs = qs.filter(
+            Q(item_propertynum__icontains=search_value) |
+            Q(item_name__icontains=search_value) |
+            Q(item_desc__icontains=search_value)
+        )
+
+    total = Equipment.objects.filter(is_returned=True).count()
+    filtered = qs.count()
+    equipments = qs.order_by('-updated_at')[start:start+length]
+
+    data = []
+    for eq in equipments:
+        data.append([
+            '',  # checkbox placeholder
+            eq.id,
+            f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
+            eq.item_propertynum,
+            eq.item_name,
+            eq.item_desc or 'None',
+            eq.returned_by or 'None',
+            f'<a href="{eq.return_document.url}" target="_blank">View</a>' if eq.return_document else 'None',
+            eq.updated_at.strftime("%b %d, %Y") if eq.updated_at else 'None',
+            eq.return_remarks or 'None',
+            eq.return_condition or 'None',
+            eq.return_type or 'None',
+            eq.received_by or 'None'
+        ])
+
+    return JsonResponse({
+        'draw': draw,
+        'recordsTotal': total,
+        'recordsFiltered': filtered,
+        'data': data,
+    })
 
 @require_POST
 @login_required
@@ -640,6 +857,8 @@ def return_equipment(request):
     remarks = request.POST.get('return_remarks')
     condition = request.POST.get('return_condition')
     return_type = request.POST.get('return_type')
+    returned_by = request.POST.get('returned_by') 
+    received_by = request.POST.get('received_by')
     if not eq_id or not file:
         messages.error(request, "Equipment and document are required.")
         return redirect('equipments:index')
@@ -649,7 +868,122 @@ def return_equipment(request):
     eq.return_remarks = remarks
     eq.return_condition = condition
     eq.return_type = return_type
-    eq.received_by = request.user
+    eq.returned_by = returned_by
+    eq.received_by = received_by
     eq.save()
     messages.success(request, "Equipment marked as returned.")
     return redirect('equipments:index')
+
+@login_required
+def archived_equipments(request):
+    return render(request, 'equipments/archived_list.html')
+
+@login_required
+def archive_equipment(request, pk):
+    equipment = get_object_or_404(Equipment, pk=pk)
+    equipment.is_archived = True
+    equipment.date_archived = timezone.now()
+    equipment.archived_by = request.user
+    equipment.save()
+    EquipmentActionLog.objects.create(
+    equipment=equipment,
+    action='archive',
+    user=request.user,
+    summary=f"Archived equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
+)
+    messages.success(request, "Equipment sent to archive.")
+    return redirect('equipments:index')
+
+@login_required
+def archived_equipment_table_json(request):
+    draw = int(request.GET.get('draw', 1))
+    start = int(request.GET.get('start', 0))
+    length = int(request.GET.get('length', 10))
+    search_value = request.GET.get('search[value]', '')
+
+    qs = Equipment.objects.filter(is_archived=True).select_related('category', 'status', 'emp')
+
+    if search_value:
+        qs = qs.filter(
+            Q(item_propertynum__icontains=search_value) |
+            Q(item_name__icontains=search_value) |
+            Q(item_desc__icontains=search_value)
+        )
+
+    total = Equipment.objects.filter(is_archived=True).count()
+    filtered = qs.count()
+    equipments = qs.order_by('-item_purdate')[start:start+length]
+
+    data = []
+    for eq in equipments:
+        data.append([
+            '',  # checkbox placeholder
+            eq.id,
+            f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
+            eq.item_propertynum,
+            eq.item_name,
+            eq.item_desc or 'None',
+            eq.po_number or 'None',
+            f'₱{eq.item_amount:,.2f}',
+            eq.end_user or 'None',
+            eq.category.name,
+            f'{eq.status.name} {"<span class=\'badge bg-secondary ms-1\'>Deleted</span>" if eq.is_archived else ""}',
+            eq.date_archived.strftime('%Y-%m-%d %H:%M') if eq.date_archived else 'None',
+            f'{eq.archived_by.get_full_name() if eq.archived_by else "None"}',
+            f'''
+            <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
+              <i class="bi bi-arrow-counterclockwise"></i> Recover
+            </a>
+            '''
+        ])
+
+    return JsonResponse({
+        'draw': draw,
+        'recordsTotal': total,
+        'recordsFiltered': filtered,
+        'data': data,
+    })
+
+@login_required
+def unarchive_equipment(request, pk):
+    eq = get_object_or_404(Equipment, pk=pk)
+    eq.is_archived = False
+    eq.save()
+    EquipmentActionLog.objects.create(
+    equipment=eq,
+    action='unarchive',
+    user=request.user,
+    summary=f"Unarchived equipment: {eq.item_name} (Property #: {eq.item_propertynum})"
+)
+    return redirect('equipments:archived_equipments')
+
+@login_required
+def equipment_history_json(request, equipment_id):
+    history = EquipmentHistory.objects.filter(equipment_id=equipment_id).order_by('-changed_at')
+    data = [
+        {
+            'changed_at': h.changed_at.strftime('%Y-%m-%d %H:%M'),
+            'action': h.action,
+            'field_changed': h.field_changed,
+            'old_value': h.old_value,
+            'new_value': h.new_value,
+            'changed_by': h.changed_by.get_full_name() or h.changed_by.username
+        }
+        for h in history
+    ]
+    return JsonResponse(data, safe=False)
+
+@login_required
+def history_logs(request):
+    logs = EquipmentActionLog.objects.select_related('user', 'equipment').order_by('-timestamp')[:500]  # Limit for performance
+    return render(request, 'equipments/history_logs.html', {'logs': logs})
+
+@login_required
+@user_passes_test(is_admin_superadmin_encoder)
+def clear_history_logs(request):
+    if request.method == 'POST':
+        EquipmentActionLog.objects.all().delete()
+        EquipmentHistory.objects.all().delete()  # Optional: clear field-level history too
+        messages.success(request, "All history logs have been cleared.")
+    return redirect('equipments:history_logs')
+
