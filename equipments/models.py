@@ -140,7 +140,7 @@ class EquipmentHistory(models.Model):
     changed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.get_action_display()} {self.field_changed} from {self.old_value} to {self.new_value}"
+        return f"{self.action} {self.field_changed} from {self.old_value} to {self.new_value}"
 
 class EquipmentActionLog(models.Model):
     ACTION_CHOICES = [

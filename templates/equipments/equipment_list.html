@@ -111,6 +111,14 @@
                   <th>Category</th>
                   <th>Status</th>
                   <th>Actions</th>
+                  <!-- Add these extra columns -->
+                  <th>Fund Source</th>
+                  <th>Supplier</th>
+                  <th>Assigned To</th>
+                  <th>Deployment Location</th>
+                  <th>Current Location</th>
+                  <th>PO Date</th>
+                  <th>Project Name</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -337,9 +345,12 @@
 
 <!-- DataTables -->
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
 <script>
 let table;
 $(document).ready(function () {
@@ -348,9 +359,17 @@ $(document).ready(function () {
   2: 'Property #',
   3: 'Name',
   4: 'Description',
-  5: 'Amount',
-  6: 'Category',
-  7: 'Status'
+  5: 'PO Number',
+  6: 'Fund Source',
+  7: 'Supplier',
+  8: 'Amount',
+  9: 'Assigned To',
+  10: 'End User',
+  11: 'Deployment Location',
+  12: 'Current Location',
+  13: 'Category',
+  14: 'Status',
+  15: 'Purchase Date'
 };
 
   // Init DataTable
@@ -360,6 +379,7 @@ table = $('#equipmentTable').DataTable({
   processing: true,
   order: [[1, 'desc']],
   // stateSave: true,
+  responsive: true,
   
   ajax: {
     url: '/equipments/equipment/table/json/',
@@ -387,12 +407,20 @@ table = $('#equipmentTable').DataTable({
     { title: "Property #" },              // 3
     { title: "Name" },                    // 4
     { title: "Description" },             // 5
-    { title: "PO Number" },               // 
-    { title: "Amount" },                  // 6
-    { title: "End User" },                //
-    { title: "Category" },                // 7
-    { title: "Status" },                  // 8
-    { title: "Actions", orderable: false } // 9
+    { title: "PO Number" },               // 6
+    { title: "Amount" },                  // 7
+    { title: "End User" },                // 8
+    { title: "Category" },                // 9
+    { title: "Status" },                  // 10
+    { title: "Actions", orderable: false }, // 11
+    // Add extra columns (hidden by default)
+    { title: "Fund Source", visible: false },      // 12
+    { title: "Supplier", visible: false },         // 13
+    { title: "Assigned To", visible: false },      // 14
+    { title: "Deployment Location", visible: false }, // 15
+    { title: "Current Location", visible: false }, // 16
+    { title: "PO Date", visible: false },          // 17
+    { title: "Project Name", visible: false }  
   ],
   pageLength: 10
 });
@@ -412,34 +440,13 @@ table = $('#equipmentTable').DataTable({
 
 // Column titles in order (match your DataTable columns)
 const columnTitles = [
-  "Select",      // 0
-  "ID",          // 1 (hidden)
-  "Image",       // 2
-  "Property #",  // 3
-  "Name",        // 4
-  "Description", // 5
-  "PO Number",   // 6 
-  "Amount",      // 7
-  "End User",    // 8
-  "Category",    // 9
-  "Status",      // 10
-  "Actions"      // 11
+  "Select", "ID", "Image", "Property #", "Name", "Description", "PO Number", "Amount", "End User", "Category", "Status", "Actions",
+  "Fund Source", "Supplier", "Assigned To", "Deployment Location", "Current Location", "PO Date", "Project Name"
 ];
 
-// Default visible columns (true = visible, false = hidden)
 const defaultVisible = [
-  true,  // 0: 
-  false, // 1: 
-  true,  // 2: 
-  true,  // 3: 
-  true,  // 4: 
-  true,  // 5: 
-  true,  // 6: 
-  true,  // 7: 
-  true,  // 8: 
-  true,  // 9: 
-  true,  // 10: 
-  true   // 11: 
+  true, false, true, true, true, true, true, true, true, true, true, true,
+  false, false, false, false, false, false, false
 ];
 
 // Populate the dropdown
@@ -497,30 +504,70 @@ columnTitles.forEach((title, idx) => {
     `);
   });
 
-    $(document).on('change', '.column-select', function () {
-    const colIdx = $(this).val();
-    const $valueCol = $(this).closest('.filter-row').find('.value-col');
-    if (colIdx == '6') {
-      // Category
-      $valueCol.html(`<select class="form-select form-select-sm value-input">
-        <option value="">All</option>
-        {% for cat in categories %}
-          <option value="{{ cat.name }}">{{ cat.name }}</option>
-        {% endfor %}
-      </select>`);
-    } else if (colIdx == '7') {
-      // Status
-      $valueCol.html(`<select class="form-select form-select-sm value-input">
-        <option value="">All</option>
-        {% for stat in statuses %}
-          <option value="{{ stat.name }}">{{ stat.name }}</option>
-        {% endfor %}
-      </select>`);
-    } else {
-      // Default to text input
-      $valueCol.html('<input type="text" class="form-control form-control-sm value-input" placeholder="Enter value">');
-    }
-  });
+$(document).on('change', '.column-select', function () {
+  const colIdx = $(this).val();
+  const $valueCol = $(this).closest('.filter-row').find('.value-col');
+  if (colIdx == '6') {
+    // Fund Source
+    $valueCol.html(`<select class="form-select form-select-sm value-input">
+      <option value="">All</option>
+      {% for fund in fund_sources %}
+        <option value="{{ fund }}">{{ fund }}</option>
+      {% endfor %}
+    </select>`);
+  } else if (colIdx == '7') {
+    // Supplier
+    $valueCol.html(`<select class="form-select form-select-sm value-input">
+      <option value="">All</option>
+      {% for supplier in suppliers %}
+        <option value="{{ supplier }}">{{ supplier }}</option>
+      {% endfor %}
+    </select>`);
+  } else if (colIdx == '9') {
+    // Assigned To
+    $valueCol.html(`<select class="form-select form-select-sm value-input">
+      <option value="">All</option>
+      {% for assigned in assigned_to_list %}
+        <option value="{{ assigned }}">{{ assigned }}</option>
+      {% endfor %}
+    </select>`);
+  } else if (colIdx == '10') {
+    // End User
+    $valueCol.html(`<select class="form-select form-select-sm value-input">
+      <option value="">All</option>
+      {% for user in end_users %}
+        <option value="{{ user }}">{{ user }}</option>
+      {% endfor %}
+    </select>`);
+  } else if (colIdx == '11') {
+    // Deployment Location
+    $valueCol.html(`<select class="form-select form-select-sm value-input">
+      <option value="">All</option>
+      {% for loc in locations %}
+        <option value="{{ loc }}">{{ loc }}</option>
+      {% endfor %}
+    </select>`);
+  } else if (colIdx == '13') {
+    // Category
+    $valueCol.html(`<select class="form-select form-select-sm value-input">
+      <option value="">All</option>
+      {% for cat in categories %}
+        <option value="{{ cat.name }}">{{ cat.name }}</option>
+      {% endfor %}
+    </select>`);
+  } else if (colIdx == '14') {
+    // Status
+    $valueCol.html(`<select class="form-select form-select-sm value-input">
+      <option value="">All</option>
+      {% for stat in statuses %}
+        <option value="{{ stat.name }}">{{ stat.name }}</option>
+      {% endfor %}
+    </select>`);
+  } else {
+    // Default to text input
+    $valueCol.html('<input type="text" class="form-control form-control-sm value-input" placeholder="Enter value">');
+  }
+});
   // Remove filter row
   $(document).on('click', '.remove-filter', function () {
     $(this).closest('.filter-row').remove();

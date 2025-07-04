@@ -10,14 +10,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.utils import timezone
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Q, Sum
 from django.core.exceptions import ObjectDoesNotExist
 # Django auth imports
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User, Group
 # Third-party imports
 import openpyxl
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, ExtractYear
 
 # Local app imports
 from .models import Equipment, Category, Status
@@ -75,12 +75,31 @@ def equipment_table_json(request):
                 qs = qs.filter(item_name__icontains=value)
             elif col_idx == '4':  # Description
                 qs = qs.filter(item_desc__icontains=value)
-            elif col_idx == '5':  # Amount
-                qs = qs.filter(item_amount__icontains=value)
-            elif col_idx == '6':  # Category
-                qs = qs.filter(category__name=value)
-            elif col_idx == '7':  # Status
-                qs = qs.filter(status__name=value)
+            elif col_idx == '5':  # PO Number
+                qs = qs.filter(po_number__icontains=value)
+            elif col_idx == '6':  # Fund Source
+                qs = qs.filter(fund_source__icontains=value)
+            elif col_idx == '7':  # Supplier
+                qs = qs.filter(supplier__icontains=value)
+            elif col_idx == '8':  # Amount
+                try:
+                    qs = qs.filter(item_amount=float(value))
+                except Exception:
+                    pass
+            elif col_idx == '9':  # Assigned To
+                qs = qs.filter(assigned_to__icontains=value)
+            elif col_idx == '10':  # End User
+                qs = qs.filter(end_user__icontains=value)
+            elif col_idx == '11':  # Location
+                qs = qs.filter(location__icontains=value)
+            elif col_idx == '12':  # Current Location
+                qs = qs.filter(current_location__icontains=value)
+            elif col_idx == '13':  # Category
+                qs = qs.filter(category__name__icontains=value)
+            elif col_idx == '14':  # Status
+                qs = qs.filter(status__name__icontains=value)
+            elif col_idx == '15':  # Purchase Date
+                qs = qs.filter(item_purdate=value)
 
     # Sorting
     order_col = request.GET.get('order[0][column]', '1')
@@ -144,16 +163,23 @@ def equipment_table_json(request):
         data.append([
             '',  # 0: Checkbox placeholder
             eq.id,  # 1: hidden ID
-            f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',
-            eq.item_propertynum,
-            eq.item_name,
-            eq.item_desc if eq.item_desc else 'None',
-            eq.po_number if eq.po_number else 'None',
-            f'₱{eq.item_amount:,.2f}',
-            eq.end_user if eq.end_user else 'None',
-            eq.category.name,
-            eq.status.name,
-            actions
+            f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',  # 2: Image
+            eq.item_propertynum,  # 3: Property #
+            eq.item_name,         # 4: Name
+            eq.item_desc if eq.item_desc else 'None',  # 5: Description
+            eq.po_number if eq.po_number else 'None',  # 6: PO Number
+            f'₱{eq.item_amount:,.2f}',                 # 7: Amount
+            eq.end_user if eq.end_user else 'None',    # 8: End User
+            eq.category.name,                          # 9: Category
+            eq.status.name,                            # 10: Status
+            actions,                                   # 11: Actions
+            eq.fund_source if eq.fund_source else 'None',         # 12: Fund Source
+            eq.supplier if eq.supplier else 'None',               # 13: Supplier
+            eq.assigned_to if eq.assigned_to else 'None',         # 14: Assigned To
+            eq.location if eq.location else 'None',               # 15: Deployment Location
+            eq.current_location if eq.current_location else 'None',# 16: Current Location
+            eq.item_purdate.strftime('%Y-%m-%d') if eq.item_purdate else 'None', # 17: PO Date
+            eq.project_name if eq.project_name else 'None',       # 18: Project Name
         ])
 
     return JsonResponse({
@@ -201,6 +227,11 @@ def index(request):
     equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
     categories = Category.objects.all()
     statuses = Status.objects.all()
+    end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user='').values_list('end_user', flat=True).distinct()
+    assigned_to_list = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).distinct()
+    fund_sources = Equipment.objects.exclude(fund_source__isnull=True).exclude(fund_source='').values_list('fund_source', flat=True).distinct()
+    suppliers = Equipment.objects.exclude(supplier__isnull=True).exclude(supplier='').values_list('supplier', flat=True).distinct()
+    locations = Equipment.objects.exclude(location__isnull=True).exclude(location='').values_list('location', flat=True).distinct()
     category_id = request.GET.get('category')
     status_id = request.GET.get('status')
     date_from = request.GET.get('date_from')
@@ -228,6 +259,11 @@ def index(request):
         'equipments': page_obj,
         'categories': categories,
         'statuses': statuses,
+        'end_users': end_users,
+        'assigned_to_list': assigned_to_list,
+        'fund_sources': fund_sources,
+        'suppliers': suppliers,
+        'locations': locations,
         'selected_category': category_id,
         'selected_status': status_id,
         'date_from': date_from,
@@ -507,29 +543,34 @@ def dashboard(request):
     # Recent equipments
     recent_equipments = Equipment.objects.order_by('-id')[:5]
 
-    # Equipments added per month (last 12 months)
-    from datetime import timedelta
-    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    months = [today.replace(day=1)]
-    for _ in range(11):
-        prev = months[-1]
-        year = prev.year - 1 if prev.month == 1 else prev.year
-        month = 12 if prev.month == 1 else prev.month - 1
-        # Handle months with fewer days (e.g., Feb)
-        try:
-            months.append(prev.replace(year=year, month=month, day=1))
-        except ValueError:
-            months.append((prev - timedelta(days=1)).replace(day=1))
-    months = sorted(months)
-    monthly_counts = Equipment.objects.filter(
-        created_at__gte=months[0]
-    ).annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
-    month_labels = [m.strftime('%b %Y') for m in months]
-    month_data = []
-    month_map = {m['month'].strftime('%b %Y'): m['count'] for m in monthly_counts}
-    for label in month_labels:
-        month_data.append(month_map.get(label, 0))
+    # Equipments acquired per year (from PO date)
+    from django.db.models.functions import ExtractYear
+    year_qs = Equipment.objects.exclude(item_purdate=None).values(year=ExtractYear('item_purdate')).annotate(count=Count('id')).order_by('year')
+    year_labels = [str(x['year']) for x in year_qs]
+    year_data = [x['count'] for x in year_qs]
 
+    # Total number and total cost of equipment per end user (currently held)
+    enduser_qs = Equipment.objects.filter(is_archived=False, is_returned=False).exclude(end_user__isnull=True).exclude(end_user='').values('end_user').annotate(
+        count=Count('id'),
+        total=Sum('item_amount')
+    ).order_by('-count')
+    enduser_labels = [x['end_user'] for x in enduser_qs]
+    enduser_counts = [x['count'] for x in enduser_qs]
+    enduser_amounts = [float(x['total'] or 0) for x in enduser_qs]
+
+    # Equipments by Assigned To: Count and Total Cost
+    assigned_qs = Equipment.objects.filter(is_archived=False, is_returned=False).exclude(assigned_to__isnull=True).exclude(assigned_to='').values('assigned_to').annotate(
+        count=Count('id'),
+        total=Sum('item_amount')
+    ).order_by('-count')
+    assigned_labels = [x['assigned_to'] for x in assigned_qs]
+    assigned_counts = [x['count'] for x in assigned_qs]
+    assigned_amounts = [float(x['total'] or 0) for x in assigned_qs]
+
+    # Equipments by Item Name: Count
+    name_qs = Equipment.objects.values('item_name').annotate(count=Count('id')).order_by('-count')
+    itemname_labels = [x['item_name'] for x in name_qs]
+    itemname_counts = [x['count'] for x in name_qs]
     context = {
         'total_equipments': total_equipments,
         'total_archived': total_archived,
@@ -540,8 +581,16 @@ def dashboard(request):
         'category_labels': json.dumps(category_labels),
         'category_counts': json.dumps(category_counts),
         'recent_equipments': recent_equipments,
-        'month_labels': json.dumps(month_labels),
-        'month_data': json.dumps(month_data),
+        'month_labels': json.dumps(year_labels),  # Used by the chart, but now years
+        'month_data': json.dumps(year_data),      # Used by the chart, but now yearly counts
+        'enduser_labels': json.dumps(enduser_labels),
+        'enduser_counts': json.dumps(enduser_counts),
+        'enduser_amounts': json.dumps(enduser_amounts),
+        'assigned_labels': json.dumps(assigned_labels),
+        'assigned_counts': json.dumps(assigned_counts),
+        'assigned_amounts': json.dumps(assigned_amounts),
+        'itemname_labels': json.dumps(itemname_labels),
+        'itemname_counts': json.dumps(itemname_counts),
     }
     return render(request, 'equipments/dashboard.html', context)
 

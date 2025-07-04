@@ -34,6 +34,7 @@
           <thead class="table-light text-center small">
             <tr>
               <th>Name</th>
+              <th>Username</th>
               <th>Role</th>
               <th>Email</th>
               <th>Date Joined</th>
@@ -47,6 +48,13 @@
             <tr>
               <td>{{ user.first_name }} {{ user.last_name }}</td>
               <td>{{ user.username }}</td>
+              <td>
+                {% if user.groups.all %}
+                  {{ user.groups.all.0.name }}
+                {% else %}
+                  No Role
+                {% endif %}
+              </td>
               <td>{{ user.email }}</td>
               <td>{{ user.date_joined|date:"M d, Y" }}</td>
               {% if is_admin or is_superadmin or is_encoder %}
