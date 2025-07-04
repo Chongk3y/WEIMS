@@ -122,10 +122,52 @@
     <div class="col-md-12">
       <div class="card shadow-sm border-0 dashboard-chart-card">
         <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">📈 Equipments Added Per Month</small>
+          <small class="fw-semibold">📈 Equipments Acquired Per Year (PO Date)</small>
         </div>
         <div class="card-body p-2">
           <canvas id="monthlyChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipments by End User: Count and Total Cost -->
+  <div class="row mt-4 g-3">
+    <div class="col-md-12">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">👤 Equipments by End User: Count & Total Cost</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="endUserChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipments by Assigned To: Count and Total Cost -->
+  <div class="row mt-4 g-3">
+    <div class="col-md-12">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">👤 Equipments by Assigned To: Count & Total Cost</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="assignedToChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipments by Item Name: Total Number -->
+  <div class="row mt-4 g-3">
+    <div class="col-md-12">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">🔢 Equipments by Name: Total Number</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="itemNameChart"></canvas>
         </div>
       </div>
     </div>
@@ -190,6 +232,109 @@
         fill: false,
         borderColor: '#0e4a39',
         tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // Equipments by End User: Count and Total Cost (Grouped Bar)
+  const ctxEndUser = document.getElementById('endUserChart').getContext('2d');
+  new Chart(ctxEndUser, {
+    type: 'bar',
+    data: {
+      labels: {{ enduser_labels|safe }},
+      datasets: [
+        {
+          label: 'Number of Equipments',
+          data: {{ enduser_counts|safe }},
+          backgroundColor: '#0d6efd',
+          yAxisID: 'y',
+        },
+        {
+          label: 'Total Cost',
+          data: {{ enduser_amounts|safe }},
+          backgroundColor: '#ffc107',
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Count' },
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Total Cost (₱)' },
+        }
+      }
+    }
+  });
+
+  // Equipments by Assigned To: Count and Total Cost (Grouped Bar)
+  const ctxAssignedTo = document.getElementById('assignedToChart').getContext('2d');
+  new Chart(ctxAssignedTo, {
+    type: 'bar',
+    data: {
+      labels: {{ assigned_labels|safe }},
+      datasets: [
+        {
+          label: 'Number of Equipments',
+          data: {{ assigned_counts|safe }},
+          backgroundColor: '#20c997',
+          yAxisID: 'y',
+        },
+        {
+          label: 'Total Cost',
+          data: {{ assigned_amounts|safe }},
+          backgroundColor: '#fd7e14',
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Count' },
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Total Cost (₱)' },
+        }
+      }
+    }
+  });
+
+  // Equipments by Item Name: Total Number (Bar)
+  const ctxItemName = document.getElementById('itemNameChart').getContext('2d');
+  new Chart(ctxItemName, {
+    type: 'bar',
+    data: {
+      labels: {{ itemname_labels|safe }},
+      datasets: [{
+        label: 'Total Number',
+        data: {{ itemname_counts|safe }},
+        backgroundColor: '#6610f2',
+        borderRadius: 5
       }]
     },
     options: {
