@@ -52,7 +52,7 @@ class Equipment(models.Model):
         verbose_name="Equipment Image"
     )
 
-    item_propertynum = models.CharField(max_length=50, verbose_name="Property Number")
+    item_propertynum = models.CharField(max_length=50, blank=True, null=True, verbose_name="Property Number")
     item_name = models.CharField(max_length=50, verbose_name="Item Name")
     item_desc = models.CharField(max_length=50, blank=True, null=True, verbose_name="Item Description")
     additional_info = models.CharField(max_length=1000, blank=True, null=True, verbose_name="Additional Info")
