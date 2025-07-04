@@ -738,9 +738,12 @@ def import_excel(request):
             try:
                 # Convert empty strings to None for all fields
                 cleaned_row = [cell if cell not in ('', None) else None for cell in row]
-
+                propertynum = cleaned_row[0]
+                # Skip if property number exists and is already in DB (ignore if blank)
+                if propertynum and Equipment.objects.filter(item_propertynum=propertynum).exists():
+                    continue
                 Equipment.objects.create(
-                    item_propertynum=cleaned_row[0],
+                    item_propertynum=propertynum,
                     item_name=cleaned_row[1],
                     item_desc=cleaned_row[2],
                     additional_info=(cleaned_row[3][:300] if cleaned_row[3] else None),
