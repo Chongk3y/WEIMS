@@ -3,6 +3,7 @@
 
 {% block content %}
 <div class="container-fluid py-3 px-3">
+
   {% if messages %}
     {% for message in messages %}
       <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
@@ -22,24 +23,24 @@
   <div class="card shadow-sm border-0">
     <div class="card-body p-2">
       <div class="table-responsive">
-        <table class="table table-sm table-hover table-bordered compact-table align-middle text-nowrap">
-          <thead class="table-light text-center">
+        <table class="table table-sm table-hover table-bordered w-100 compact-table text-center">
+          <thead class="table-light">
             <tr>
-              <th>Name</th>
-              <th style="width: 120px;">Actions</th>
+              <th style="width: 50%;">Category Name</th>
+              <th style="width: 50%;">Actions</th>
             </tr>
           </thead>
           <tbody>
             {% for category in categories %}
             <tr>
-              <td>{{ category.name }}</td>
-              <td class="text-center">
-                <div class="btn-group btn-group-sm">
-                  <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editCategoryModal{{ category.id }}">
+              <td class="align-middle">{{ category.name }}</td>
+              <td class="align-middle">
+                <div class="d-flex justify-content-center gap-1">
+                  <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editCategoryModal{{ category.id }}">
                     <i class="bi bi-pencil-square"></i>
                   </button>
                   {% if is_admin %}
-                  <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteCategoryModal{{ category.id }}">
+                  <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteCategoryModal{{ category.id }}">
                     <i class="bi bi-trash"></i>
                   </button>
                   {% endif %}
@@ -69,13 +70,14 @@
                 </div>
               </div>
             </div>
-            
+
+            <!-- Delete Modal -->
             <div class="modal fade" id="deleteCategoryModal{{ category.id }}" tabindex="-1" aria-labelledby="deleteCategoryModalLabel{{ category.id }}" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                   <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title" id="deleteCategoryModalLabel{{ category.id }}">Delete Category</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                   </div>
                   <form method="post" action="{% url 'equipments:delete_category' category.id %}">
                     {% csrf_token %}
@@ -91,9 +93,10 @@
                 </div>
               </div>
             </div>
+
             {% empty %}
             <tr>
-              <td colspan="2" class="text-center text-muted">No categories found.</td>
+              <td colspan="2" class="text-muted text-center">No categories found.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -126,13 +129,21 @@
   </div>
 </div>
 
-<!-- Extra styling for compact table -->
+<!-- Styles -->
 <style>
   .compact-table th,
   .compact-table td {
-    padding: 0.4rem !important;
-    font-size: 0.85rem;
+    padding: 0.5rem !important;
+    font-size: 0.9rem;
     vertical-align: middle;
+    text-align: center;
+  }
+
+  @media (max-width: 768px) {
+    .compact-table th,
+    .compact-table td {
+      font-size: 0.8rem;
+    }
   }
 </style>
 {% endblock %}
