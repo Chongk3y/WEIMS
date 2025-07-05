@@ -3,14 +3,15 @@
 {% block content %}
 <div class="container-fluid mt-4 px-4">
   <h5 class="fw-semibold mb-0">Recently Deleted Equipment</h5>
-  <div class="card shadow-sm border-0">
-    <div class="card-body p-2">
+  <!-- Table Card -->
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-3">
       <div class="table-responsive">
-        <table id="archivedEquipmentTable" class="table compact-table">
-          <thead>
+        <table id="archivedEquipmentTable" class="table compact-table table-hover table-striped table-bordered align-middle text-nowrap small">
+          <thead class="table-success text-center align-middle">
             <tr>
               <th></th>
-              <th>ID</th>
+              <th style="display:none;">ID</th>
               <th>Image</th>
               <th>Property #</th>
               <th>Name</th>
@@ -30,6 +31,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- DataTables JS (if not already included in base.html) -->

@@ -1,9 +1,10 @@
 {% extends 'base.html' %}
 {% block title %}Manage Users{% endblock %}
 {% load static %}
-{% block content %}
 
+{% block content %}
 <div class="container-fluid py-3">
+  <!-- Page Header -->
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h5 class="fw-semibold mb-0">👥 User Management</h5>
     {% if is_admin %}
@@ -26,12 +27,12 @@
     </div>
   </form>
 
-  <!-- Table -->
-  <div class="card shadow-sm border-0">
-    <div class="card-body p-2">
+  <!-- Users Table Card -->
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-3">
       <div class="table-responsive">
         <table id="usersTable" class="table table-sm table-hover table-bordered align-middle text-nowrap">
-          <thead class="table-light text-center small">
+          <thead class="table-success text-center small">
             <tr>
               <th>Name</th>
               <th>Username</th>
@@ -52,7 +53,7 @@
                 {% if user.groups.all %}
                   {{ user.groups.all.0.name }}
                 {% else %}
-                  No Role
+                  <span class="text-muted">No Role</span>
                 {% endif %}
               </td>
               <td>{{ user.email }}</td>
@@ -60,46 +61,47 @@
               {% if is_admin or is_superadmin or is_encoder %}
               <td class="text-center">
                 <div class="btn-group btn-group-sm">
-                  <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}" title="Edit">
+                  <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#editUserModal{{ user.id }}" title="Edit">
                     <i class="bi bi-pencil-square"></i>
                   </button>
-                  <a href="#" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ user.id }}">
+                  <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteUserModal{{ user.id }}" title="Delete">
                     <i class="bi bi-trash"></i>
-                  </a>
+                  </button>
                 </div>
               </td>
               {% endif %}
             </tr>
-                                    <!-- Edit User Modal -->
+
+            <!-- Edit Modal -->
             <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1" aria-labelledby="editUserModalLabel{{ user.id }}" aria-hidden="true">
               <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                   <form method="post" action="{% url 'equipments:edit_user' user.id %}">
                     {% csrf_token %}
                     <div class="modal-header">
-                      <h5 class="modal-title" id="editUserModalLabel{{ user.id }}">Edit User</h5>
-                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                      <h5 class="modal-title">Edit User</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
                       <div class="row g-2">
                         <div class="col-md-6">
-                          <label class="form-label small mb-1">First Name</label>
+                          <label class="form-label small">First Name</label>
                           <input type="text" name="first_name" class="form-control form-control-sm" value="{{ user.first_name }}" required>
                         </div>
                         <div class="col-md-6">
-                          <label class="form-label small mb-1">Last Name</label>
+                          <label class="form-label small">Last Name</label>
                           <input type="text" name="last_name" class="form-control form-control-sm" value="{{ user.last_name }}" required>
                         </div>
                         <div class="col-md-6">
-                          <label class="form-label small mb-1">Username</label>
+                          <label class="form-label small">Username</label>
                           <input type="text" name="username" class="form-control form-control-sm" value="{{ user.username }}" required>
                         </div>
                         <div class="col-md-6">
-                          <label class="form-label small mb-1">Email</label>
+                          <label class="form-label small">Email</label>
                           <input type="email" name="email" class="form-control form-control-sm" value="{{ user.email }}">
                         </div>
                         <div class="col-md-6">
-                          <label class="form-label small mb-1">Role</label>
+                          <label class="form-label small">Role</label>
                           <select class="form-select form-select-sm" name="role" required>
                             <option value="Admin" {% if user.groups.first.name == 'Admin' %}selected{% endif %}>Admin</option>
                             <option value="Encoder" {% if user.groups.first.name == 'Encoder' %}selected{% endif %}>Encoder</option>
@@ -117,41 +119,41 @@
               </div>
             </div>
 
-            <!-- Modal for this user (must be inside the for loop!) -->
+            <!-- Delete Modal -->
             <div class="modal fade" id="deleteUserModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteUserModalLabel{{ user.id }}" aria-hidden="true">
               <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                   <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title" id="deleteUserModalLabel{{ user.id }}">Delete User</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title">Delete User</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                   </div>
                   <div class="modal-body">
-                    Are you sure you want to delete user
-                    <strong>{{ user.first_name }} {{ user.last_name }} ({{ user.username }})</strong>?
+                    Are you sure you want to delete <strong>{{ user.first_name }} {{ user.last_name }}</strong> ({{ user.username }})?
                   </div>
                   <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                     <form method="post" action="{% url 'equipments:delete_user' user.id %}" style="display:inline;">
                       {% csrf_token %}
-                      <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                      <button type="submit" class="btn btn-sm btn-danger">Delete</button>
                     </form>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             {% empty %}
             <tr>
-              <td colspan="4" class="text-center text-muted">No users found.</td>
+              <td colspan="6" class="text-center text-muted">No users found.</td>
             </tr>
             {% endfor %}
           </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-<!-- DataTables Custom Search -->
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DataTables Initialization -->
 <script>
   $(document).ready(function () {
     var table = $('#usersTable').DataTable({
@@ -168,5 +170,4 @@
     });
   });
 </script>
-
 {% endblock %}

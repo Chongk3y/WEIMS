@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Equipment Summary Table Report</h2>
+<div class="mb-3">
+  <button id="exportCsvBtn" class="btn btn-success btn-sm">Export CSV</button>
+</div>
+<div class="table-responsive">
+  <table id="equipmentSummaryTable" class="table table-bordered table-striped table-hover">
+    <thead>
+      <tr>
+        <th>Property #</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Status</th>
+        <th>Assigned To</th>
+        <th>End User</th>
+        <th>Location</th>
+        <th>Current Location</th>
+        <th>Amount</th>
+        <th>Purchase Date</th>
+        <th>Project Name</th>
+        <th>Fund Source</th>
+        <th>Supplier</th>
+        <th>Created By</th>
+        <th>Created At</th>
+        <th>Updated By</th>
+        <th>Updated At</th>
+      </tr>
+      <tr>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Property #"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Name"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Description"></th>
+        <th>
+          <select class="form-control form-control-sm" id="categoryFilter">
+            <option value="">All</option>
+            {% for cat in categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th>
+          <select class="form-control form-control-sm" id="statusFilter">
+            <option value="">All</option>
+            {% for stat in statuses %}
+              <option value="{{ stat }}">{{ stat }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th>
+          <select class="form-control form-control-sm" id="assignedToFilter">
+            <option value="">All</option>
+            {% for assigned in assigned_tos %}
+              <option value="{{ assigned }}">{{ assigned }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th>
+          <select class="form-control form-control-sm" id="endUserFilter">
+            <option value="">All</option>
+            {% for enduser in end_users %}
+              <option value="{{ enduser }}">{{ enduser }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th>
+          <select class="form-control form-control-sm" id="locationFilter">
+            <option value="">All</option>
+            {% for loc in locations %}
+              <option value="{{ loc }}">{{ loc }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th>
+          <select class="form-control form-control-sm" id="currentLocationFilter">
+            <option value="">All</option>
+            {% for currloc in current_locations %}
+              <option value="{{ currloc }}">{{ currloc }}</option>
+            {% endfor %}
+          </select>
+        </th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Amount"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Purchase Date"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Project Name"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Fund Source"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Supplier"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Created By"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Created At"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Updated By"></th>
+        <th><input type="text" class="form-control form-control-sm" placeholder="Search Updated At"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for eq in equipment_list %}
+      <tr>
+        <td>{{ eq.item_propertynum }}</td>
+        <td>{{ eq.item_name }}</td>
+        <td>{{ eq.item_desc }}</td>
+        <td>{{ eq.category.name }}</td>
+        <td>{{ eq.status.name }}</td>
+        <td>{{ eq.assigned_to }}</td>
+        <td>{{ eq.end_user }}</td>
+        <td>{{ eq.location }}</td>
+        <td>{{ eq.current_location }}</td>
+        <td>{{ eq.item_amount }}</td>
+        <td>{{ eq.item_purdate|date:'Y-m-d' }}</td>
+        <td>{{ eq.project_name }}</td>
+        <td>{{ eq.fund_source }}</td>
+        <td>{{ eq.supplier }}</td>
+        <td>{{ eq.created_by.get_full_name|default:'N/A' }}</td>
+        <td>{{ eq.created_at|date:'Y-m-d H:i' }}</td>
+        <td>{{ eq.updated_by.get_full_name|default:'N/A' }}</td>
+        <td>{{ eq.updated_at|date:'Y-m-d H:i' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- DataTables JS/CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+$(document).ready(function() {
+  var table = $('#equipmentSummaryTable').DataTable({
+    orderCellsTop: true,
+    fixedHeader: true
+  });
+  // Per-column search for text inputs
+  $('#equipmentSummaryTable thead tr:eq(1) th input').each(function(i) {
+    $(this).on('keyup change', function() {
+      if (table.column(i).search() !== this.value) {
+        table.column(i).search(this.value).draw();
+      }
+    });
+  });
+  // Per-column search for dropdowns
+  $('#categoryFilter, #statusFilter, #assignedToFilter, #endUserFilter, #locationFilter, #currentLocationFilter').on('change', function() {
+    var colIdx = $(this).closest('th').index();
+    var val = $(this).val();
+    table.column(colIdx).search(val ? '^' + $.fn.dataTable.util.escapeRegex(val) + '$' : '', true, false).draw();
+  });
+  // Export CSV
+  $('#exportCsvBtn').on('click', function() {
+    var csv = [];
+    var rows = document.querySelectorAll('#equipmentSummaryTable tr');
+    for (var i = 0; i < rows.length; i++) {
+      var row = [], cols = rows[i].querySelectorAll('th, td');
+      for (var j = 0; j < cols.length; j++)
+        row.push('"' + cols[j].innerText.replace(/"/g, '""') + '"');
+      csv.push(row.join(','));
+    }
+    var csvFile = new Blob([csv.join('\n')], {type: 'text/csv'});
+    var downloadLink = document.createElement('a');
+    downloadLink.download = 'equipment_summary.csv';
+    downloadLink.href = window.URL.createObjectURL(csvFile);
+    downloadLink.style.display = 'none';
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+  });
+});
+</script>
+{% endblock %}

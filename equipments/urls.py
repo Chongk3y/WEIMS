@@ -37,11 +37,9 @@ urlpatterns = [
     path('<int:equipment_id>/history/', views.equipment_history_json, name='equipment_history_json'),
     path('history-logs/', views.history_logs, name='history_logs'),
     path('history/clear/', views.clear_history_logs, name='clear_history_logs'),
-
-
-
-
-    
+    path('reports/summary/', views.equipment_summary_report, name='equipment_summary_report'),
+    path('reports/financial/', views.financial_report, name='financial_report'),
+    path('reports/summary-table/', views.equipment_summary_table_report, name='equipment_summary_table_report'),
 ] + static(settings.MEDIA_URL, 
     document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, 
     document_root=settings.STATIC_ROOT)
