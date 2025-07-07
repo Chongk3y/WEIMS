@@ -605,7 +605,7 @@ def dashboard(request):
     return render(request, 'equipments/dashboard.html', context)
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def user(request):
     users = User.objects.all().order_by('-date_joined')  # <-- Add this line
     is_admin = request.user.groups.filter(name="Admin").exists()
@@ -945,6 +945,7 @@ def return_equipment(request):
     return redirect('equipments:index')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def archived_equipments(request):
     return render(request, 'equipments/archived_list.html')
 
@@ -1056,6 +1057,7 @@ def equipment_history_json(request, equipment_id):
     return JsonResponse(data, safe=False)
 
 @login_required
+@user_passes_test(is_admin_or_superadmin)
 def history_logs(request):
     logs = EquipmentActionLog.objects.select_related('user', 'equipment').order_by('-timestamp')[:500]  # Limit for performance
     return render(request, 'equipments/history_logs.html', {'logs': logs})
@@ -1069,7 +1071,8 @@ def clear_history_logs(request):
         messages.success(request, "All history logs have been cleared.")
     return redirect('equipments:history_logs')
 
-
+@login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def reports_page(request):
     from .models import Equipment, Category
     from django.db.models import Sum
