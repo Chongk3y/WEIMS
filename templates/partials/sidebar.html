@@ -34,8 +34,7 @@
     <i class="bi bi-people"></i> Users
   </a>
 
-  <a href="{% url 'equipments:equipment_summary_table_report' %}" class="nav-link {% if request.resolver_match.url_name == 'equipment_summary_table_report' %}active{% endif %}"><i class="bi bi-table"></i> Equipment Summary Table</a>
-  <a href="{% url 'equipments:financial_report' %}" class="nav-link {% if request.resolver_match.url_name == 'financial_report' %}active{% endif %}"><i class="bi bi-cash-stack"></i> Financial Report</a>
+  <a href="{% url 'equipments:reports_page' %}" class="nav-link {% if request.resolver_match.url_name == 'reports_page' %}active{% endif %}"><i class="bi bi-cash-stack"></i>Reports</a>
 
 
   <a class="nav-link d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#settings-collapse" role="button" aria-expanded="false" aria-controls="settings-collapse">

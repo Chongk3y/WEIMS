@@ -7,111 +7,113 @@
 <div class="alert alert-danger small py-2 px-3 my-2">{{ error }}</div>
 {% endif %}
 
-<div class="container-fluid px-2" style="max-width: 100vw;">
-  <div class="card shadow-sm">
-
-    <div class="card-body p-2">
+<div class="container py-3">
+  <div class="card shadow-sm border-0 mx-auto" style="max-width: 920px;">
+    <div class="card-header text-white py-2" style="background-color: #0e4a39;">
+    <h5 class="mb-0">Add New Equipment</h5>
+    </div>
+    <div class="card-body p-4">
       <form action="{% url 'equipments:processaddequipment' %}" method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        <div class="row g-2">
+        <div class="row g-3">
 
           <!-- 🛠 Equipment Details -->
-          <div class="col-12 small fw-bold text-secondary mt-2">🛠 Equipment Details</div>
+          <div class="col-12 small fw-bold text-secondary border-bottom pb-1">Equipment Details</div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Image</label>
+          <div class="col-md-6">
+            <label class="form-label small">Image</label>
             <input type="file" class="form-control form-control-sm" name="user_image">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Property #</label>
+          <div class="col-md-6">
+            <label class="form-label small">Property #</label>
             <input type="text" name="item_propertynum" class="form-control form-control-sm" value="{{ values.item_propertynum|default_if_none:'' }}" required>
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Item Name</label>
+          <div class="col-md-6">
+            <label class="form-label small">Item Name</label>
             <input type="text" name="item_name" class="form-control form-control-sm" value="{{ values.item_name|default_if_none:'' }}" required>
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Description</label>
+          <div class="col-md-6">
+            <label class="form-label small">Description</label>
             <input type="text" name="item_desc" class="form-control form-control-sm" value="{{ values.item_desc|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Additional Info</label>
+          <div class="col-md-12">
+            <label class="form-label small">Additional Info</label>
             <input type="text" name="additional_info" class="form-control form-control-sm" value="{{ values.additional_info|default_if_none:'' }}">
           </div>
 
           <!-- 🧾 Purchase Details -->
-          <div class="col-12 small fw-bold text-secondary mt-2">🧾 Purchase Details</div>
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Purchase Details</div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">PO #</label>
+          <div class="col-md-6">
+            <label class="form-label small">PO #</label>
             <input type="text" name="po_number" class="form-control form-control-sm" value="{{ values.po_number|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Fund Source</label>
+          <div class="col-md-6">
+            <label class="form-label small">Fund Source</label>
             <input type="text" name="fund_source" class="form-control form-control-sm" value="{{ values.fund_source|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Supplier</label>
+          <div class="col-md-6">
+            <label class="form-label small">Supplier</label>
             <input type="text" name="supplier" class="form-control form-control-sm" value="{{ values.supplier|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Amount (₱)</label>
+          <div class="col-md-6">
+            <label class="form-label small">Amount (₱)</label>
             <input type="number" step="0.01" name="item_amount" class="form-control form-control-sm" value="{{ values.item_amount|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Purchase Date</label>
+          <div class="col-md-6">
+            <label class="form-label small">Purchase Date</label>
             <input type="date" name="item_purdate" class="form-control form-control-sm" value="{{ values.item_purdate|default_if_none:'' }}">
           </div>
 
-          <div class="mb-3">
-            <label for="orderReceipt" class="form-label">Order Receipt (optional)</label>
-            <input type="file" class="form-control" id="orderReceipt" name="order_receipt" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
+          <div class="col-md-6">
+            <label for="orderReceipt" class="form-label small">Order Receipt (optional)</label>
+            <input type="file" class="form-control form-control-sm" id="orderReceipt" name="order_receipt" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx">
           </div>
 
           <!-- 📍 Project & Assignment -->
-          <div class="col-12 small fw-bold text-secondary mt-2">📍 Project & Assignment</div>
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Project & Assignment</div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Project Name</label>
+          <div class="col-md-6">
+            <label class="form-label small">Project Name</label>
             <input type="text" name="project_name" class="form-control form-control-sm" value="{{ values.project_name|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Assigned To</label>
+          <div class="col-md-6">
+            <label class="form-label small">Assigned To</label>
             <input type="text" name="assigned_to" class="form-control form-control-sm" value="{{ values.assigned_to|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">End User</label>
+          <div class="col-md-6">
+            <label class="form-label small">End User</label>
             <input type="text" name="end_user" class="form-control form-control-sm" value="{{ values.end_user|default_if_none:'' }}">
           </div>
 
-          <!-- 🗺 Location Info -->
-          <div class="col-12 small fw-bold text-secondary mt-2">📌 Location Info</div>
+          <!-- 📌 Location Info -->
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Location Info</div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Deployment Location</label>
+          <div class="col-md-6">
+            <label class="form-label small">Deployment Location</label>
             <input type="text" name="location" class="form-control form-control-sm" value="{{ values.location|default_if_none:'' }}">
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Current Location</label>
+          <div class="col-md-6">
+            <label class="form-label small">Current Location</label>
             <input type="text" name="current_location" class="form-control form-control-sm" value="{{ values.current_location|default_if_none:'' }}">
           </div>
 
           <!-- 🗂 Classification -->
-          <div class="col-12 small fw-bold text-secondary mt-2">🗂 Classification</div>
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Classification</div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Category</label>
+          <div class="col-md-6">
+            <label class="form-label small">Category</label>
             <select name="category_id" class="form-select form-select-sm">
               {% for cat in categories %}
               <option value="{{ cat.id }}" {% if values.category_id == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
@@ -119,8 +121,8 @@
             </select>
           </div>
 
-          <div class="col-sm-6">
-            <label class="form-label small mb-1">Status</label>
+          <div class="col-md-6">
+            <label class="form-label small">Status</label>
             <select name="status_id" class="form-select form-select-sm">
               {% for stat in statuses %}
               <option value="{{ stat.id }}" {% if values.status_id == stat.id|stringformat:"s" %}selected{% endif %}>{{ stat.name }}</option>
@@ -128,16 +130,19 @@
             </select>
           </div>
 
-          <!-- 🔘 Buttons -->
-          <div class="col-12 text-end mt-2">
+          <!-- 🔘 Submit -->
+          <div class="col-12 text-end mt-3">
             {% if is_admin or is_encoder %}
-              <a href="{% url 'equipments:index' %}" class="btn btn-sm btn-outline-secondary px-4">Cancel</a>
-              <button type="submit" class="btn btn-sm btn-custom px-4">Save</button>
+            <a href="{% url 'equipments:index' %}" class="btn btn-sm btn-outline-secondary px-4">Cancel</a>
+            <button type="submit" class="btn btn-sm btn-custom px-4">Save</button>
             {% endif %}
           </div>
+
         </div>
       </form>
+
     </div>
   </div>
 </div>
+
 {% endblock %}
