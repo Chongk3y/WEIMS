@@ -1197,9 +1197,10 @@ def reports_page(request):
 
 @login_required
 def generate_report(request):
-    from .models import Equipment  # <-- Move this import to the top of the function
+    from .models import Equipment
     form = ReportFilterForm(request.GET or None)
     equipments = Equipment.objects.all()
+    selected_columns = []  # Ensure selected_columns is always defined
 
     # --- Advanced Filter Logic ---
     from django.db.models import Q
@@ -1285,6 +1286,8 @@ def generate_report(request):
         user_templates = ReportTemplate.objects.filter(user=request.user)
 
     template_id = request.GET.get('load_template')
+    loaded_template_filters = None
+    loaded_template_columns = None
     if template_id:
         try:
             template = ReportTemplate.objects.get(id=template_id, user=request.user)
@@ -1293,6 +1296,8 @@ def generate_report(request):
                 **(template.filters or {})
             })
             selected_columns = template.columns
+            loaded_template_filters = template.filters or {}
+            loaded_template_columns = template.columns or []
         except ReportTemplate.DoesNotExist:
             messages.error(request, 'Template not found.')
 
@@ -1357,6 +1362,8 @@ def generate_report(request):
         'column_labels': column_labels,
         'user_templates': user_templates,
         'default_columns': [],
+        'loaded_template_filters': loaded_template_filters,  # <-- for JS
+        'loaded_template_columns': loaded_template_columns,  # <-- for JS
     }
     return render(request, 'reports/generate_report.html', context)
 

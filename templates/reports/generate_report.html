@@ -1,6 +1,15 @@
 {% extends 'base.html' %}
 {% load report_extras %}
 {% block content %}
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+<script>
+  window.LOADED_TEMPLATE_FILTERS = {{ loaded_template_filters|default:'{}'|safe }};
+  window.LOADED_TEMPLATE_COLUMNS = {{ loaded_template_columns|default:'[]'|safe }};
+</script>
 <style>
 @media print {
   body * {
@@ -33,7 +42,7 @@
             <select name="load_template" id="load_template" class="form-select form-select-sm w-auto" onchange="this.form.submit()" title="Load a saved template">
               <option value="">-- Select --</option>
               {% for t in user_templates %}
-                <option value="{{ t.id }}">{{ t.name }}</option>
+                <option value="{{ t.id }}" {% if t.id|stringformat:'s' == request.GET.load_template %}selected{% endif %}>{{ t.name }}</option>
               {% endfor %}
             </select>
           </form>
@@ -154,6 +163,58 @@
             }
           });
           updateRemoveButtons();
+        });
+      </script>
+      <script>
+        // Restore columns and filters from loaded template, but do NOT auto-submit
+        document.addEventListener('DOMContentLoaded', function() {
+          let loadedColumns = window.LOADED_TEMPLATE_COLUMNS;
+          let loadedFilters = window.LOADED_TEMPLATE_FILTERS;
+          if (typeof loadedColumns === 'string') try { loadedColumns = JSON.parse(loadedColumns); } catch(e) {}
+          if (typeof loadedFilters === 'string') try { loadedFilters = JSON.parse(loadedFilters); } catch(e) {}
+
+          // Restore columns
+          if (loadedColumns && Array.isArray(loadedColumns) && loadedColumns.length > 0) {
+            document.querySelectorAll('#columnModal input[name="columns"]').forEach(cb => cb.checked = false);
+            loadedColumns.forEach(function(col) {
+              var cb = document.getElementById('col_' + col);
+              if (cb) cb.checked = true;
+            });
+            // Update hidden inputs in the main form
+            const mainForm = document.getElementById('advanced-filter-form');
+            if (mainForm) {
+              mainForm.querySelectorAll('input[name="columns"]').forEach(e => e.remove());
+              loadedColumns.forEach(function(col) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'columns';
+                input.value = col;
+                mainForm.appendChild(input);
+              });
+            }
+          }
+
+          // Restore advanced filters
+          if (loadedFilters && typeof loadedFilters === 'object' && loadedFilters['filter_column[]']) {
+            const filterRows = document.getElementById('advanced-filter-rows');
+            if (filterRows) {
+              let firstRow = filterRows.querySelector('.advanced-filter-row');
+              filterRows.innerHTML = '';
+              let cols = loadedFilters['filter_column[]'] || [];
+              let ops = loadedFilters['filter_operator[]'] || [];
+              let vals = loadedFilters['filter_value[]'] || [];
+              for (let i = 0; i < cols.length; i++) {
+                let newRow = firstRow.cloneNode(true);
+                newRow.querySelector('select[name="filter_column[]"]').value = cols[i];
+                newRow.querySelector('select[name="filter_operator[]"]').value = ops[i] || 'exact';
+                newRow.querySelector('input[name="filter_value[]"]').value = vals[i] || '';
+                filterRows.appendChild(newRow);
+              }
+              if (cols.length === 0) filterRows.appendChild(firstRow);
+            }
+          }
+
+          // No auto-submit! User must press Generate to run the report after loading a template.
         });
       </script>
       <small class="text-muted">Add multiple filter conditions as needed. Filters are combined with AND.</small>
