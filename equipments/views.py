@@ -62,7 +62,17 @@ def equipment_table_json(request):
             Q(item_name__icontains=search_value) |
             Q(item_desc__icontains=search_value) |
             Q(category__name__icontains=search_value) |
-            Q(status__name__icontains=search_value)
+            Q(status__name__icontains=search_value) |
+            Q(po_number__icontains=search_value) |
+            Q(fund_source__icontains=search_value) |
+            Q(supplier__icontains=search_value) |
+            Q(item_amount__icontains=search_value) |
+            Q(assigned_to__icontains=search_value) |
+            Q(end_user__icontains=search_value) |
+            Q(location__icontains=search_value) |
+            Q(current_location__icontains=search_value) |
+            Q(item_purdate__icontains=search_value) |
+            Q(project_name__icontains=search_value)
         )
 
     # Advanced filters
@@ -865,7 +875,19 @@ def returned_equipment_table_json(request):
         qs = qs.filter(
             Q(item_propertynum__icontains=search_value) |
             Q(item_name__icontains=search_value) |
-            Q(item_desc__icontains=search_value)
+            Q(item_desc__icontains=search_value) |
+            Q(category__name__icontains=search_value) |
+            Q(status__name__icontains=search_value) |
+            Q(po_number__icontains=search_value) |
+            Q(fund_source__icontains=search_value) |
+            Q(supplier__icontains=search_value) |
+            Q(item_amount__icontains=search_value) |
+            Q(assigned_to__icontains=search_value) |
+            Q(end_user__icontains=search_value) |
+            Q(location__icontains=search_value) |
+            Q(current_location__icontains=search_value) |
+            Q(item_purdate__icontains=search_value) |
+            Q(project_name__icontains=search_value)
         )
 
     total = Equipment.objects.filter(is_returned=True).count()
@@ -955,7 +977,19 @@ def archived_equipment_table_json(request):
         qs = qs.filter(
             Q(item_propertynum__icontains=search_value) |
             Q(item_name__icontains=search_value) |
-            Q(item_desc__icontains=search_value)
+            Q(item_desc__icontains=search_value) |
+            Q(category__name__icontains=search_value) |
+            Q(status__name__icontains=search_value) |
+            Q(po_number__icontains=search_value) |
+            Q(fund_source__icontains=search_value) |
+            Q(supplier__icontains=search_value) |
+            Q(item_amount__icontains=search_value) |
+            Q(assigned_to__icontains=search_value) |
+            Q(end_user__icontains=search_value) |
+            Q(location__icontains=search_value) |
+            Q(current_location__icontains=search_value) |
+            Q(item_purdate__icontains=search_value) |
+            Q(project_name__icontains=search_value)
         )
 
     total = Equipment.objects.filter(is_archived=True).count()
