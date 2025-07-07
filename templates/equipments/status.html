@@ -20,10 +20,10 @@
     </button>
   </div>
 
-  <div class="card shadow-sm border-0">
+  <div class="border-0">
     <div class="card-body p-2">
       <div class="table-responsive">
-        <table class="table table-sm table-hover table-bordered align-middle text-nowrap compact-table">
+        <table class="table table-sm table-hover table-bordered align-middle text-center compact-table equal-width-table">
           <thead class="table-light text-center">
             <tr>
               <th>Name</th>
@@ -138,5 +138,31 @@
     font-size: 0.85rem;
     vertical-align: middle;
   }
+
+  .equal-width-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .equal-width-table th,
+  .equal-width-table td {
+    width: 50%;
+    word-wrap: break-word;
+    white-space: normal;
+  }
+
+  /* Prevent dropdowns or content from being cut off */
+  .table-responsive {
+    overflow: visible !important;
+  }
+
+  /* Optional: Center and limit width on medium+ screens */
+  @media (min-width: 768px) {
+    .table-responsive {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+  }
 </style>
+
 {% endblock %}

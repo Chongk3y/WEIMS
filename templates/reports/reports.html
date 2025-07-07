@@ -1,50 +1,52 @@
 {% extends 'base.html' %}
+{% load humanize %}
 {% block content %}
-<h5 class="fw-semibold mb-3">Financial Reports</h5>
+<div class="container-fluid px-3 px-md-4 py-3">
+  <h5 class="fw-semibold mb-3">Financial Reports</h5>
 
-<div class="row g-3">
   <!-- Charts Section -->
   <div class="col-12 mb-2">
     <div class="row g-3">
       <div class="col-12 col-md-4">
-        <div class="card shadow-sm p-3 h-100">
-          <div class="fw-semibold small mb-1">Asset Value by Category</div>
+        <div class="card shadow-sm p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+          <div class="fw-semibold small mb-2">Asset Value by Category</div>
           <canvas id="assetValueByCategoryChart" width="320" height="200"></canvas>
         </div>
       </div>
       <div class="col-12 col-md-4">
-        <div class="card shadow-sm p-3 h-100">
-          <div class="fw-semibold small mb-1">Monthly Purchases</div>
+        <div class="card shadow-sm p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+          <div class="fw-semibold small mb-2">Monthly Purchases</div>
           <canvas id="monthlyPurchasesChart" width="320" height="200"></canvas>
         </div>
       </div>
       <div class="col-12 col-md-4">
-        <div class="card shadow-sm p-3 h-100">
-          <div class="fw-semibold small mb-1">Status Breakdown</div>
+        <div class="card shadow-sm p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+          <div class="fw-semibold small mb-2">Status Breakdown</div>
           <canvas id="statusBreakdownChart" width="320" height="200"></canvas>
         </div>
       </div>
       <div class="col-12 col-md-4">
-        <div class="card shadow-sm p-3 h-100">
-          <div class="fw-semibold small mb-1">Yearly Purchases</div>
+        <div class="card shadow-sm p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+          <div class="fw-semibold small mb-2">Yearly Purchases</div>
           <canvas id="yearlyPurchasesChart" width="320" height="200"></canvas>
         </div>
       </div>
       <div class="col-12 col-md-4">
-        <div class="card shadow-sm p-3 h-100">
-          <div class="fw-semibold small mb-1">Top Suppliers</div>
+        <div class="card shadow-sm p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+          <div class="fw-semibold small mb-2">Top Suppliers</div>
           <canvas id="topSuppliersChart" width="320" height="200"></canvas>
         </div>
       </div>
       <div class="col-12 col-md-4">
-        <div class="card shadow-sm p-3 h-100">
-          <div class="fw-semibold small mb-1">Asset Count by Category</div>
+        <div class="card shadow-sm p-3 h-100 d-flex flex-column justify-content-center align-items-center text-center">
+          <div class="fw-semibold small mb-2">Asset Count by Category</div>
           <canvas id="assetCountByCategoryChart" width="320" height="200"></canvas>
         </div>
       </div>
     </div>
   </div>
 </div>
+
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -207,7 +209,7 @@
                 {% for row in asset_by_category %}
                   <tr>
                     <td>{{ row.category__name }}</td>
-                    <td class="text-end">{{ row.total|floatformat:2 }}</td>
+                    <td class="text-end">{{ row.total|floatformat:2|intcomma }}</td>
                   </tr>
                 {% empty %}
                   <tr><td colspan="2" class="text-center">No data available.</td></tr>
@@ -257,7 +259,7 @@
                 {% for row in top_suppliers %}
                   <tr>
                     <td>{{ row.supplier|default:'(None)' }}</td>
-                    <td class="text-end">{{ row.total|floatformat:2 }}</td>
+                    <td class="text-end">{{ row.total|floatformat:2|intcomma }}</td>
                   </tr>
                 {% empty %}
                   <tr><td colspan="2" class="text-center">No data available.</td></tr>
@@ -284,7 +286,7 @@
                   <tr>
                     <td>{{ row.status__name }}</td>
                     <td class="text-end">{{ row.count }}</td>
-                    <td class="text-end">{{ row.total|floatformat:2 }}</td>
+                    <td class="text-end">{{ row.total|floatformat:2|intcomma }}</td>
                   </tr>
                 {% empty %}
                   <tr><td colspan="3" class="text-center">No data available.</td></tr>
@@ -316,7 +318,7 @@
                     <td>{{ eq.item_name }}</td>
                     <td>{{ eq.category.name }}</td>
                     <td>{{ eq.supplier|default:'(None)' }}</td>
-                    <td class="text-end">{{ eq.item_amount|floatformat:2 }}</td>
+                    <td class="text-end">{{ eq.item_amount|floatformat:2|intcomma }}</td>
                     <td>{{ eq.item_purdate|date:'Y-m-d' }}</td>
                   </tr>
                 {% empty %}
@@ -344,7 +346,7 @@
                   <tr>
                     <td>{{ row.month|date:'F' }}</td>
                     <td class="text-end">{{ row.count }}</td>
-                    <td class="text-end">{{ row.total|floatformat:2 }}</td>
+                    <td class="text-end">{{ row.total|floatformat:2|intcomma }}</td>
                   </tr>
                 {% empty %}
                   <tr><td colspan="3" class="text-center">No data available.</td></tr>
@@ -371,7 +373,7 @@
                   <tr>
                     <td>{{ row.year }}</td>
                     <td class="text-end">{{ row.count }}</td>
-                    <td class="text-end">{{ row.total|floatformat:2 }}</td>
+                    <td class="text-end">{{ row.total|floatformat:2|intcomma }}</td>
                   </tr>
                 {% empty %}
                   <tr><td colspan="3" class="text-center">No data available.</td></tr>
@@ -400,7 +402,7 @@
                     <td>{{ row.location|default:'(None)' }}</td>
                     <td>{{ row.status__name|default:'(None)' }}</td>
                     <td class="text-end">{{ row.count }}</td>
-                    <td class="text-end">{{ row.total|floatformat:2 }}</td>
+                    <td class="text-end">{{ row.total|floatformat:2|intcomma }}</td>
                   </tr>
                 {% empty %}
                   <tr><td colspan="4" class="text-center">No data available.</td></tr>
