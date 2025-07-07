@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load report_extras %}
+{% block content %}
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+  {% endfor %}
+{% endif %}
+<script>
+  window.LOADED_TEMPLATE_FILTERS = {{ loaded_template_filters|default:'{}'|safe }};
+  window.LOADED_TEMPLATE_COLUMNS = {{ loaded_template_columns|default:'[]'|safe }};
+</script>
+<style>
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  .printable-report, .printable-report * {
+    visibility: visible !important;
+  }
+  .printable-report {
+    position: absolute;
+    left: 0; top: 0; width: 100%;
+    background: white !important;
+    z-index: 9999;
+    padding: 0;
+    margin: 0;
+  }
+}
+</style>
+<div class="container-fluid px-2 px-md-4 py-3">
+  <h2 class="fw-semibold mb-4"><i class="bi bi-file-earmark-bar-graph"></i> Generate Equipment Report</h2>
+
+  <!-- Template Management Card -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-center">
+        <!-- Load Template -->
+        <div class="col-md-4 border-end">
+          <form method="get" class="d-flex align-items-center gap-2">
+            <span class="fw-semibold"><i class="bi bi-download"></i> Load</span>
+            <select name="load_template" id="load_template" class="form-select form-select-sm w-auto" onchange="this.form.submit()" title="Load a saved template">
+              <option value="">-- Select --</option>
+              {% for t in user_templates %}
+                <option value="{{ t.id }}" {% if t.id|stringformat:'s' == request.GET.load_template %}selected{% endif %}>{{ t.name }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        </div>
+        <!-- Save Template -->
+        <div class="col-md-4 border-end">
+          <form method="post" class="d-flex align-items-center gap-2 justify-content-center">
+            {% csrf_token %}
+            <span class="fw-semibold"><i class="bi bi-save"></i> Save</span>
+            <input type="text" name="template_name" class="form-control form-control-sm w-auto" placeholder="Template Name" required title="Enter a name for your template">
+            <button type="submit" name="save_template" class="btn btn-success btn-sm" title="Save current filters and columns as a template"><i class="bi bi-plus-circle"></i> Save</button>
+          </form>
+        </div>
+        <!-- Delete Template -->
+        <div class="col-md-4">
+          <form method="post" class="d-flex align-items-center gap-2 justify-content-end">
+            {% csrf_token %}
+            <span class="fw-semibold text-danger"><i class="bi bi-trash"></i> Delete</span>
+            <select name="delete_template" id="delete_template" class="form-select form-select-sm w-auto" title="Delete a saved template">
+              <option value="">-- Select --</option>
+              {% for t in user_templates %}
+                <option value="{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-danger btn-sm" title="Delete selected template"><i class="bi bi-x-circle"></i></button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Advanced Filter and Column Selection Card -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <form method="get" id="advanced-filter-form">
+        <!-- Persist selected columns as hidden inputs -->
+        {% for col in selected_columns %}
+          {% if col not in default_columns %}
+            <input type="hidden" name="columns" value="{{ col }}">
+          {% endif %}
+        {% endfor %}
+        <div id="advanced-filter-rows">
+          <div class="row g-2 align-items-end mb-2 advanced-filter-row">
+            <div class="col-12 col-md-3">
+              <label class="form-label form-label-sm mb-1">Column</label>
+              <select name="filter_column[]" class="form-select form-select-sm filter-column-select">
+                {% for group, choices in form.fields.columns.choices %}
+                  <optgroup label="{{ group }}">
+                  {% for value, label in choices %}
+                    <option value="{{ value }}">{{ label }}</option>
+                  {% endfor %}
+                  </optgroup>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-md-2">
+              <label class="form-label form-label-sm mb-1">Operator</label>
+              <select name="filter_operator[]" class="form-select form-select-sm">
+                <option value="exact">Equals</option>
+                <option value="icontains">Contains</option>
+                <option value="gt">&gt;</option>
+                <option value="lt">&lt;</option>
+                <option value="gte">&ge;</option>
+                <option value="lte">&le;</option>
+                <option value="isnull">Is Empty</option>
+                <option value="notnull">Is Not Empty</option>
+              </select>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label form-label-sm mb-1">Value</label>
+              <input type="text" name="filter_value[]" class="form-control form-control-sm" />
+            </div>
+            <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
+              <button type="button" class="btn btn-outline-danger btn-sm remove-filter-row" title="Remove filter row"><i class="bi bi-dash-circle"></i></button>
+            </div>
+          </div>
+        </div>
+        <!-- No hidden columns, always use default columns -->
+        <div class="row mb-2">
+          <div class="col-12 col-md-2">
+            <button type="button" class="btn btn-outline-secondary btn-sm w-100" id="add-filter-row"><i class="bi bi-plus-circle"></i> Add Filter</button>
+          </div>
+          <div class="col-12 col-md-10 d-flex align-items-center gap-1 mt-2 mt-md-0 justify-content-end">
+            <button type="button" class="btn btn-outline-primary btn-sm flex-fill py-1" style="min-width:120px" data-bs-toggle="modal" data-bs-target="#columnModal">
+              <i class="bi bi-layout-three-columns"></i> Columns
+            </button>
+            <button type="submit" class="btn btn-primary btn-sm flex-fill py-1" style="min-width:120px"><i class="bi bi-funnel"></i> Generate</button>
+          </div>
+        </div>
+      </form>
+      <script>
+        // Advanced filter row add/remove logic
+        document.addEventListener('DOMContentLoaded', function() {
+          const filterRows = document.getElementById('advanced-filter-rows');
+          const addBtn = document.getElementById('add-filter-row');
+          function addRow() {
+            const row = filterRows.querySelector('.advanced-filter-row');
+            const newRow = row.cloneNode(true);
+            newRow.querySelectorAll('input,select').forEach(el => el.value = '');
+            filterRows.appendChild(newRow);
+            updateRemoveButtons();
+          }
+          function removeRow(e) {
+            if (filterRows.querySelectorAll('.advanced-filter-row').length > 1) {
+              e.target.closest('.advanced-filter-row').remove();
+            }
+            updateRemoveButtons();
+          }
+          function updateRemoveButtons() {
+            filterRows.querySelectorAll('.remove-filter-row').forEach(btn => {
+              btn.disabled = filterRows.querySelectorAll('.advanced-filter-row').length === 1;
+            });
+          }
+          addBtn.addEventListener('click', addRow);
+          filterRows.addEventListener('click', function(e) {
+            if (e.target.classList.contains('remove-filter-row')) {
+              removeRow(e);
+            }
+          });
+          updateRemoveButtons();
+        });
+      </script>
+      <script>
+        // Restore columns and filters from loaded template, but do NOT auto-submit
+        document.addEventListener('DOMContentLoaded', function() {
+          let loadedColumns = window.LOADED_TEMPLATE_COLUMNS;
+          let loadedFilters = window.LOADED_TEMPLATE_FILTERS;
+          if (typeof loadedColumns === 'string') try { loadedColumns = JSON.parse(loadedColumns); } catch(e) {}
+          if (typeof loadedFilters === 'string') try { loadedFilters = JSON.parse(loadedFilters); } catch(e) {}
+
+          // Restore columns
+          if (loadedColumns && Array.isArray(loadedColumns) && loadedColumns.length > 0) {
+            document.querySelectorAll('#columnModal input[name="columns"]').forEach(cb => cb.checked = false);
+            loadedColumns.forEach(function(col) {
+              var cb = document.getElementById('col_' + col);
+              if (cb) cb.checked = true;
+            });
+            // Update hidden inputs in the main form
+            const mainForm = document.getElementById('advanced-filter-form');
+            if (mainForm) {
+              mainForm.querySelectorAll('input[name="columns"]').forEach(e => e.remove());
+              loadedColumns.forEach(function(col) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'columns';
+                input.value = col;
+                mainForm.appendChild(input);
+              });
+            }
+          }
+
+          // Restore advanced filters
+          if (loadedFilters && typeof loadedFilters === 'object' && loadedFilters['filter_column[]']) {
+            const filterRows = document.getElementById('advanced-filter-rows');
+            if (filterRows) {
+              let firstRow = filterRows.querySelector('.advanced-filter-row');
+              filterRows.innerHTML = '';
+              let cols = loadedFilters['filter_column[]'] || [];
+              let ops = loadedFilters['filter_operator[]'] || [];
+              let vals = loadedFilters['filter_value[]'] || [];
+              for (let i = 0; i < cols.length; i++) {
+                let newRow = firstRow.cloneNode(true);
+                newRow.querySelector('select[name="filter_column[]"]').value = cols[i];
+                newRow.querySelector('select[name="filter_operator[]"]').value = ops[i] || 'exact';
+                newRow.querySelector('input[name="filter_value[]"]').value = vals[i] || '';
+                filterRows.appendChild(newRow);
+              }
+              if (cols.length === 0) filterRows.appendChild(firstRow);
+            }
+          }
+
+          // No auto-submit! User must press Generate to run the report after loading a template.
+        });
+      </script>
+      <small class="text-muted">Add multiple filter conditions as needed. Filters are combined with AND.</small>
+    </div>
+  </div>
+
+  <!-- Modal for column selection -->
+  <div class="modal fade" id="columnModal" tabindex="-1" aria-labelledby="columnModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="columnModalLabel">Select Columns to Display</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <form method="get" onsubmit="return false;">
+        <div class="modal-body">
+          {% for group, choices in form.fields.columns.choices %}
+            <strong>{{ group }}</strong>
+            <div class="row mb-2">
+              {% for value, label in choices %}
+                <div class="col-6">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="columns" value="{{ value }}" id="col_{{ value }}"
+                      {% if value in selected_columns %}checked{% endif %}>
+                    <label class="form-check-label" for="col_{{ value }}">{{ label }}</label>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+          <small class="text-muted">Default columns are always shown and cannot be removed.</small>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm w-25" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary btn-sm w-25" id="apply-columns-btn">Apply</button>
+        </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Column selection modal: Apply button logic
+    document.addEventListener('DOMContentLoaded', function() {
+      const applyBtn = document.getElementById('apply-columns-btn');
+      if (applyBtn) {
+        applyBtn.addEventListener('click', function() {
+          // Get all checked column checkboxes (including disabled)
+          const modal = document.getElementById('columnModal');
+          const checked = modal.querySelectorAll('input[name="columns"]:checked');
+          // Remove all existing hidden column inputs from the main form
+          const mainForm = document.getElementById('advanced-filter-form');
+          mainForm.querySelectorAll('input[name="columns"]').forEach(e => e.remove());
+          // Add hidden inputs for each checked column
+          checked.forEach(cb => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'columns';
+            input.value = cb.value;
+            mainForm.appendChild(input);
+          });
+          // Submit the main form
+          mainForm.submit();
+        });
+      }
+    });
+  </script>
+
+  <!-- Report Results Section -->
+  <div class="card shadow-sm printable-report">
+    <div class="card-body">
+      {% if equipments %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h5 class="mb-0">Report Results</h5>
+          </div>
+          <div class="no-print">
+            <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-spreadsheet"></i> Export CSV</a>
+            <button onclick="window.print()" class="btn btn-secondary btn-sm"><i class="bi bi-printer"></i> Print</button>
+          </div>
+        </div>
+        {% if selected_columns %}
+        <div class="table-responsive">
+          <table class="table table-bordered table-sm align-middle">
+            <thead class="table-light">
+              <tr>
+                {% for col in selected_columns %}
+                  <th class="text-center">{{ column_labels|get_item:col }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+            {% for eq in equipments %}
+              <tr>
+                {% for col in selected_columns %}
+                  <td>
+                    {% if col == 'category' %}{{ eq.category }}
+                    {% elif col == 'status' %}{{ eq.status }}
+                    {% elif col == 'created_at' %}{{ eq.created_at|date:'Y-m-d' }}
+                    {% elif col == 'updated_at' %}{{ eq.updated_at|date:'Y-m-d' }}
+                    {% elif col == 'item_amount' %}{{ eq.item_amount }}
+                    {% elif col == 'user_image' %}<img src="{{ eq.user_image.url }}" alt="" style="max-width:50px;max-height:50px;">{% else %}{{ eq|getattribute:col }}{% endif %}
+                  </td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted">Please select at least one column to display the report.</p>
+        {% endif %}
+      {% else %}
+        <p class="text-muted">No results found.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
