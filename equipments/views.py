@@ -23,6 +23,8 @@ from django.db.models.functions import TruncMonth, ExtractYear
 from .models import Equipment, Category, Status
 from .models import EquipmentHistory
 from .models import EquipmentActionLog
+from .models import ReportTemplate
+from .forms import ReportFilterForm
 
 
 
@@ -1192,6 +1194,171 @@ def reports_page(request):
         'selected_status': selected_status,
     }
     return render(request, 'reports/reports.html', context)
+
+@login_required
+def generate_report(request):
+    from .models import Equipment  # <-- Move this import to the top of the function
+    form = ReportFilterForm(request.GET or None)
+    equipments = Equipment.objects.all()
+
+    # --- Advanced Filter Logic ---
+    from django.db.models import Q
+    from datetime import datetime as dt
+    filter_columns = request.GET.getlist('filter_column[]')
+    filter_operators = request.GET.getlist('filter_operator[]')
+    filter_values = request.GET.getlist('filter_value[]')
+    advanced_filters = Q()
+    field_type_map = {
+        'id': int,
+        'item_amount': float,
+        'created_at': 'date',
+        'updated_at': 'date',
+        'item_purdate': 'date',
+        'category': 'fk',
+        'status': 'fk',
+        'is_returned': 'bool',
+        'is_archived': 'bool',
+    }
+    for col, op, val in zip(filter_columns, filter_operators, filter_values):
+        if not col:
+            continue
+        field_type = field_type_map.get(col, str)
+        val_conv = val
+        try:
+            if op in ['isnull', 'notnull']:
+                advanced_filters &= Q(**{f"{col}__isnull": op == 'isnull'})
+                continue
+            if field_type == int:
+                val_conv = int(val)
+            elif field_type == float:
+                val_conv = float(val)
+            elif field_type == 'date':
+                try:
+                    val_conv = dt.strptime(val, '%Y-%m-%d').date()
+                except Exception:
+                    val_conv = val
+            elif field_type == 'bool':
+                val_conv = val.lower() in ['1', 'true', 'yes']
+            elif field_type == 'fk':
+                if col == 'category':
+                    from .models import Category
+                    try:
+                        val_conv = int(val)
+                        val_conv = Category.objects.get(pk=val_conv)
+                    except Exception:
+                        val_conv = Category.objects.filter(name__iexact=val).first()
+                    if val_conv:
+                        val_conv = val_conv.pk
+                elif col == 'status':
+                    from .models import Status
+                    try:
+                        val_conv = int(val)
+                        val_conv = Status.objects.get(pk=val_conv)
+                    except Exception:
+                        val_conv = Status.objects.filter(name__iexact=val).first()
+                    if val_conv:
+                        val_conv = val_conv.pk
+        except Exception:
+            val_conv = val
+        if op == 'isnull' or op == 'notnull':
+            continue
+        elif op in ['exact', 'iexact', 'icontains', 'gt', 'lt', 'gte', 'lte'] and val:
+            lookup = f"{col}__{op if op != 'exact' else 'iexact'}"
+            advanced_filters &= Q(**{lookup: val_conv})
+    if filter_columns:
+        equipments = equipments.filter(advanced_filters)
+
+    if form.is_valid() and not filter_columns:
+        if form.cleaned_data['start_date']:
+            equipments = equipments.filter(created_at__gte=form.cleaned_data['start_date'])
+        if form.cleaned_data['end_date']:
+            equipments = equipments.filter(created_at__lte=form.cleaned_data['end_date'])
+        if form.cleaned_data['status']:
+            equipments = equipments.filter(status=form.cleaned_data['status'])
+        if form.cleaned_data['category']:
+            equipments = equipments.filter(category=form.cleaned_data['category'])
+        if form.cleaned_data['assigned_to']:
+            equipments = equipments.filter(assigned_to__icontains=form.cleaned_data['assigned_to'])
+
+    user_templates = []
+    if request.user.is_authenticated:
+        user_templates = ReportTemplate.objects.filter(user=request.user)
+
+    template_id = request.GET.get('load_template')
+    if template_id:
+        try:
+            template = ReportTemplate.objects.get(id=template_id, user=request.user)
+            form = ReportFilterForm(initial={
+                'columns': template.columns,
+                **(template.filters or {})
+            })
+            selected_columns = template.columns
+        except ReportTemplate.DoesNotExist:
+            messages.error(request, 'Template not found.')
+
+    if request.method == 'POST' and 'save_template' in request.POST:
+        template_name = request.POST.get('template_name')
+        if template_name:
+            filters = {k: v for k, v in form.cleaned_data.items() if k != 'columns'}
+            ReportTemplate.objects.create(
+                user=request.user,
+                name=template_name,
+                columns=selected_columns,
+                filters=filters
+            )
+            messages.success(request, 'Template saved!')
+        return redirect(request.path)
+
+    if request.method == 'POST' and 'delete_template' in request.POST:
+        del_id = request.POST.get('delete_template')
+        ReportTemplate.objects.filter(id=del_id, user=request.user).delete()
+        messages.success(request, 'Template deleted!')
+        return redirect(request.path)
+
+    if form.is_valid():
+        selected_columns = list(form.cleaned_data.get('columns') or [])
+    else:
+        selected_columns = []
+    seen = set()
+    selected_columns = [x for x in selected_columns if not (x in seen or seen.add(x))]
+
+    # Build column_labels from model verbose_name
+    from .models import Equipment
+    column_labels = {field.name: field.verbose_name.title() for field in Equipment._meta.get_fields() if hasattr(field, 'verbose_name')}
+    # Add any missing fields from form choices (for custom/related fields)
+    for group, choices in form.fields['columns'].choices:
+        for value, label in choices:
+            if value not in column_labels:
+                column_labels[value] = label
+
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="equipment_report.csv"'
+        writer = csv.writer(response)
+        # Write header
+        writer.writerow([column_labels.get(col, col) for col in selected_columns])
+        for eq in equipments:
+            row = []
+            for col in selected_columns:
+                if col == 'category':
+                    row.append(str(eq.category) if eq.category else '')
+                elif col == 'status':
+                    row.append(str(eq.status) if eq.status else '')
+                elif col == 'created_at':
+                    row.append(eq.created_at.strftime('%Y-%m-%d') if eq.created_at else '')
+                else:
+                    row.append(getattr(eq, col, ''))
+            writer.writerow(row)
+        return response
+    context = {
+        'form': form,
+        'equipments': equipments,
+        'selected_columns': selected_columns,
+        'column_labels': column_labels,
+        'user_templates': user_templates,
+        'default_columns': [],
+    }
+    return render(request, 'reports/generate_report.html', context)
 
 
 
