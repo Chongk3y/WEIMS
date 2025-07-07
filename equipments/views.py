@@ -774,7 +774,6 @@ def export_csv(request):
 
     return response
 
-
 @login_required
 @user_passes_test(is_admin_superadmin_encoder)
 def import_excel(request):
@@ -1036,47 +1035,8 @@ def clear_history_logs(request):
         messages.success(request, "All history logs have been cleared.")
     return redirect('equipments:history_logs')
 
-@login_required
-def equipment_summary_report(request):
-    from .models import Equipment, Category, Status
-    from django.db.models import Count
-    import json
-    total_count = Equipment.objects.count()
-    category_qs = list(Category.objects.annotate(count=Count('equipment')).values('name', 'count'))
-    status_qs = list(Status.objects.annotate(count=Count('equipment')).values('name', 'count'))
-    location_qs = list(Equipment.objects.exclude(location__isnull=True).exclude(location='').values('location').annotate(count=Count('id')).order_by('-count'))
-    assigned_qs = list(Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values('assigned_to').annotate(count=Count('id')).order_by('-count'))
-    context = {
-        'total_count': total_count,
-        'category_counts': category_qs,
-        'status_counts': status_qs,
-        'location_counts': location_qs,
-        'assigned_counts': assigned_qs,
-        'category_labels': json.dumps([c['name'] for c in category_qs]),
-        'category_data': json.dumps([c['count'] for c in category_qs]),
-        'status_labels': json.dumps([s['name'] for s in status_qs]),
-        'status_data': json.dumps([s['count'] for s in status_qs]),
-        'location_labels': json.dumps([l['location'] for l in location_qs]),
-        'location_data': json.dumps([l['count'] for l in location_qs]),
-        'assigned_labels': json.dumps([a['assigned_to'] for a in assigned_qs]),
-        'assigned_data': json.dumps([a['count'] for a in assigned_qs]),
-    }
-    return render(request, 'reports/equipment_summary.html', context)
 
-@login_required
-def purchase_supplier_report(request):
-    from .models import Equipment
-    from django.db.models import Count, Sum
-    supplier_counts = Equipment.objects.exclude(supplier__isnull=True).exclude(supplier='').values('supplier').annotate(count=Count('id')).order_by('-count')
-    fundsource_totals = Equipment.objects.exclude(fund_source__isnull=True).exclude(fund_source='').values('fund_source').annotate(total=Sum('item_amount')).order_by('-total')
-    context = {
-        'supplier_counts': supplier_counts,
-        'fundsource_totals': fundsource_totals,
-    }
-    return render(request, 'reports/purchase_supplier.html', context)
-
-@login_required
-def financial_report(request):
+def reports_page(request):
     from .models import Equipment, Category
     from django.db.models import Sum
     categories = Category.objects.all()
@@ -1089,78 +1049,113 @@ def financial_report(request):
     if selected_supplier:
         eqs = eqs.filter(supplier=selected_supplier)
     total_asset = eqs.aggregate(total=Sum('item_amount'))['total'] or 0
+
+    # Asset value by category
+    asset_by_category = (
+        eqs.values('category__name')
+        .annotate(total=Sum('item_amount'))
+        .order_by('-total')
+    )
+
+    # Asset count by category
+    asset_count_by_category = (
+        eqs.values('category__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+
+    # Top suppliers by asset value
+    top_suppliers = (
+        eqs.values('supplier')
+        .annotate(total=Sum('item_amount'))
+        .order_by('-total')[:10]
+    )
+
+    # Asset status breakdown
+    status_breakdown = (
+        eqs.values('status__name')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('-count')
+    )
+
+    # Recently added assets (last 5)
+    recent_assets = eqs.order_by('-created_at')[:5]
+
+    # Monthly purchases (current year)
+    from django.utils import timezone
+    from django.db.models.functions import TruncMonth, ExtractYear
+    now = timezone.now()
+    current_year = now.year
+    monthly_purchases = (
+        eqs.filter(item_purdate__year=current_year)
+        .annotate(month=TruncMonth('item_purdate'))
+        .values('month')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('month')
+    )
+
+    # Yearly purchases
+    yearly_purchases = (
+        eqs.exclude(item_purdate=None)
+        .annotate(year=ExtractYear('item_purdate'))
+        .values('year')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('year')
+    )
+
+    # Assets by Location and Status
+    assets_by_location_status = (
+        eqs.values('location', 'status__name')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('location', 'status__name')
+    )
+
+    # For filter dropdowns
+    locations = Equipment.objects.values_list('location', flat=True).distinct().order_by('location')
+    statuses = Equipment.objects.values_list('status__name', flat=True).distinct().order_by('status__name')
+    selected_location = request.GET.get('location', '')
+    selected_status = request.GET.get('status', '')
+    if selected_location:
+        assets_by_location_status = assets_by_location_status.filter(location=selected_location)
+    if selected_status:
+        assets_by_location_status = assets_by_location_status.filter(status__name=selected_status)
+
+    # CSV Export
+    if request.GET.get('export_location_status') == '1':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="assets_by_location_status.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Location', 'Status', 'Asset Count', 'Total Value (₱)'])
+        for row in assets_by_location_status:
+            writer.writerow([
+                row['location'] or '(None)',
+                row['status__name'] or '(None)',
+                row['count'],
+                f"{row['total']:.2f}" if row['total'] is not None else '0.00'
+            ])
+        return response
+
     context = {
         'categories': categories,
         'suppliers': suppliers,
         'selected_category': selected_category,
         'selected_supplier': selected_supplier,
         'total_asset': total_asset,
-    }
-    return render(request, 'reports/financial.html', context)
-
-
-@login_required
-def archived_report(request):
-    from .models import Equipment, Category
-    from django.contrib.auth.models import User
-    categories = Category.objects.all()
-    archived_by_users = Equipment.objects.filter(is_archived=True).exclude(archived_by__isnull=True).values_list('archived_by__username', flat=True).distinct()
-    selected_archived_by = request.GET.get('archived_by', '')
-    selected_date_archived = request.GET.get('date_archived', '')
-    selected_category = request.GET.get('category', '')
-    qs = Equipment.objects.filter(is_archived=True)
-    if selected_archived_by:
-        qs = qs.filter(archived_by__username=selected_archived_by)
-    if selected_date_archived:
-        qs = qs.filter(date_archived__date=selected_date_archived)
-    if selected_category:
-        qs = qs.filter(category_id=selected_category)
-    archived_equipments = qs.order_by('-date_archived')[:100]
-    # Download CSV if requested
-    if request.GET.get('download') == '1':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = 'attachment; filename="archived_equipments.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Name', 'Date Archived', 'Archived By', 'Category'])
-        for eq in archived_equipments:
-            writer.writerow([
-                eq.item_name,
-                eq.date_archived.strftime('%Y-%m-%d') if eq.date_archived else '',
-                eq.archived_by.get_full_name() if eq.archived_by else '',
-                eq.category.name if eq.category else ''
-            ])
-        return response
-    context = {
-        'archived_equipments': archived_equipments,
-        'archived_by_users': archived_by_users,
-        'selected_archived_by': selected_archived_by,
-        'selected_date_archived': selected_date_archived,
-        'categories': categories,
-        'selected_category': selected_category,
-    }
-    return render(request, 'reports/archived.html', context)
-
-@login_required
-def equipment_summary_table_report(request):
-    from .models import Equipment, Category, Status
-    from django.db.models import F
-    # Get all equipment
-    equipment_list = Equipment.objects.select_related('category', 'status').all()
-    # Get unique values for dropdowns
-    categories = Category.objects.values_list('name', flat=True).order_by('name').distinct()
-    statuses = Status.objects.values_list('name', flat=True).order_by('name').distinct()
-    assigned_tos = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).order_by('assigned_to').distinct()
-    end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user='').values_list('end_user', flat=True).order_by('end_user').distinct()
-    locations = Equipment.objects.exclude(location__isnull=True).exclude(location='').values_list('location', flat=True).order_by('location').distinct()
-    current_locations = Equipment.objects.exclude(current_location__isnull=True).exclude(current_location='').values_list('current_location', flat=True).order_by('current_location').distinct()
-    context = {
-        'equipment_list': equipment_list,
-        'categories': categories,
-        'statuses': statuses,
-        'assigned_tos': assigned_tos,
-        'end_users': end_users,
+        'asset_by_category': asset_by_category,
+        'asset_count_by_category': asset_count_by_category,
+        'top_suppliers': top_suppliers,
+        'status_breakdown': status_breakdown,
+        'recent_assets': recent_assets,
+        'monthly_purchases': monthly_purchases,
+        'yearly_purchases': yearly_purchases,
+        'assets_by_location_status': assets_by_location_status,
         'locations': locations,
-        'current_locations': current_locations,
+        'statuses': statuses,
+        'selected_location': selected_location,
+        'selected_status': selected_status,
     }
-    return render(request, 'reports/equipment_summary_table.html', context)
+    return render(request, 'reports/reports.html', context)
+
+
+
 
