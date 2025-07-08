@@ -1208,6 +1208,9 @@ def generate_report(request):
     filter_columns = request.GET.getlist('filter_column[]')
     filter_operators = request.GET.getlist('filter_operator[]')
     filter_values = request.GET.getlist('filter_value[]')
+    filter_rows = []
+    for col, op, val in zip(filter_columns, filter_operators, filter_values):
+        filter_rows.append({'column': col, 'operator': op, 'value': val})
     advanced_filters = Q()
     field_type_map = {
         'id': int,
@@ -1281,45 +1284,8 @@ def generate_report(request):
         if form.cleaned_data['assigned_to']:
             equipments = equipments.filter(assigned_to__icontains=form.cleaned_data['assigned_to'])
 
-    user_templates = []
-    if request.user.is_authenticated:
-        user_templates = ReportTemplate.objects.filter(user=request.user)
-
-    template_id = request.GET.get('load_template')
-    loaded_template_filters = None
-    loaded_template_columns = None
-    if template_id:
-        try:
-            template = ReportTemplate.objects.get(id=template_id, user=request.user)
-            form = ReportFilterForm(initial={
-                'columns': template.columns,
-                **(template.filters or {})
-            })
-            selected_columns = template.columns
-            loaded_template_filters = template.filters or {}
-            loaded_template_columns = template.columns or []
-        except ReportTemplate.DoesNotExist:
-            messages.error(request, 'Template not found.')
-
-    if request.method == 'POST' and 'save_template' in request.POST:
-        template_name = request.POST.get('template_name')
-        if template_name:
-            filters = {k: v for k, v in form.cleaned_data.items() if k != 'columns'}
-            ReportTemplate.objects.create(
-                user=request.user,
-                name=template_name,
-                columns=selected_columns,
-                filters=filters
-            )
-            messages.success(request, 'Template saved!')
-        return redirect(request.path)
-
-    if request.method == 'POST' and 'delete_template' in request.POST:
-        del_id = request.POST.get('delete_template')
-        ReportTemplate.objects.filter(id=del_id, user=request.user).delete()
-        messages.success(request, 'Template deleted!')
-        return redirect(request.path)
-
+    # Always use the current GET data for form and selected_columns
+    form = ReportFilterForm(request.GET or None)
     if form.is_valid():
         selected_columns = list(form.cleaned_data.get('columns') or [])
     else:
@@ -1360,10 +1326,7 @@ def generate_report(request):
         'equipments': equipments,
         'selected_columns': selected_columns,
         'column_labels': column_labels,
-        'user_templates': user_templates,
-        'default_columns': [],
-        'loaded_template_filters': loaded_template_filters,  # <-- for JS
-        'loaded_template_columns': loaded_template_columns,  # <-- for JS
+        'filter_rows': filter_rows or None,  # ensure persistence of filter rows
     }
     return render(request, 'reports/generate_report.html', context)
 

@@ -1,0 +1,53 @@
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .printable-report, .printable-report * {
+    visibility: visible;
+  }
+
+  .printable-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .table {
+    font-size: 12px;
+  }
+
+  .print-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .print-header img {
+    display: block;
+    margin: 0 auto 10px auto;
+  }
+}
+
+@media print {
+  .no-print, a, a:visited, a:link, a:active {
+    text-decoration: none !important;
+    color: black !important;
+  }
+  .no-print, .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  a[href]:after, a[href^="http"]:after, a[href^="/"]:after,
+  a[href]::after, a[href^="http"]::after, a[href^="/"]::after {
+    content: none !important;
+    display: none !important;
+  }
+}
