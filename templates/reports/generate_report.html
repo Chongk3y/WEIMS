@@ -1,15 +1,14 @@
 {% extends 'base.html' %}
 {% load report_extras %}
+{% block title %}{% endblock %}
 {% block content %}
+{% load static %}
+{% load humanize %}
 {% if messages %}
   {% for message in messages %}
     <div class="alert alert-{{ message.tags }}">{{ message }}</div>
   {% endfor %}
 {% endif %}
-<script>
-  window.LOADED_TEMPLATE_FILTERS = {{ loaded_template_filters|default:'{}'|safe }};
-  window.LOADED_TEMPLATE_COLUMNS = {{ loaded_template_columns|default:'[]'|safe }};
-</script>
 <style>
 @media print {
   body * {
@@ -26,53 +25,43 @@
     padding: 0;
     margin: 0;
   }
+  .no-print, .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  a, a:visited, a:link, a:active {
+    text-decoration: none !important;
+    color: black !important;
+  }
+  a[href]:after, a[href^="http"]:after, a[href^="/"]:after,
+  a[href]::after, a[href^="http"]::after, a[href^="/"]::after {
+    content: none !important;
+    display: none !important;
+  }
+  /* Compact table for print */
+  .printable-report .table,
+  .printable-report .table th,
+  .printable-report .table td {
+    font-size: 11px !important;
+    padding: 2px 4px !important;
+    border-width: 1px !important;
+  }
+  .printable-report .table th,
+  .printable-report .table td {
+    vertical-align: middle !important;
+  }
+}
+.print-header {
+  display: none;
 }
 </style>
 <div class="container-fluid px-2 px-md-4 py-3">
   <h2 class="fw-semibold mb-4"><i class="bi bi-file-earmark-bar-graph"></i> Generate Equipment Report</h2>
-
-  <!-- Template Management Card -->
-  <div class="card shadow-sm mb-4">
-    <div class="card-body">
-      <div class="row g-3 align-items-center">
-        <!-- Load Template -->
-        <div class="col-md-4 border-end">
-          <form method="get" class="d-flex align-items-center gap-2">
-            <span class="fw-semibold"><i class="bi bi-download"></i> Load</span>
-            <select name="load_template" id="load_template" class="form-select form-select-sm w-auto" onchange="this.form.submit()" title="Load a saved template">
-              <option value="">-- Select --</option>
-              {% for t in user_templates %}
-                <option value="{{ t.id }}" {% if t.id|stringformat:'s' == request.GET.load_template %}selected{% endif %}>{{ t.name }}</option>
-              {% endfor %}
-            </select>
-          </form>
-        </div>
-        <!-- Save Template -->
-        <div class="col-md-4 border-end">
-          <form method="post" class="d-flex align-items-center gap-2 justify-content-center">
-            {% csrf_token %}
-            <span class="fw-semibold"><i class="bi bi-save"></i> Save</span>
-            <input type="text" name="template_name" class="form-control form-control-sm w-auto" placeholder="Template Name" required title="Enter a name for your template">
-            <button type="submit" name="save_template" class="btn btn-success btn-sm" title="Save current filters and columns as a template"><i class="bi bi-plus-circle"></i> Save</button>
-          </form>
-        </div>
-        <!-- Delete Template -->
-        <div class="col-md-4">
-          <form method="post" class="d-flex align-items-center gap-2 justify-content-end">
-            {% csrf_token %}
-            <span class="fw-semibold text-danger"><i class="bi bi-trash"></i> Delete</span>
-            <select name="delete_template" id="delete_template" class="form-select form-select-sm w-auto" title="Delete a saved template">
-              <option value="">-- Select --</option>
-              {% for t in user_templates %}
-                <option value="{{ t.id }}">{{ t.name }}</option>
-              {% endfor %}
-            </select>
-            <button type="submit" class="btn btn-danger btn-sm" title="Delete selected template"><i class="bi bi-x-circle"></i></button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- Advanced Filter and Column Selection Card -->
   <div class="card shadow-sm mb-4">
@@ -85,10 +74,84 @@
           {% endif %}
         {% endfor %}
         <div id="advanced-filter-rows">
-          <div class="row g-2 align-items-end mb-2 advanced-filter-row">
+          {% if filter_rows %}
+            {% for row in filter_rows %}
+              <div class="row g-2 align-items-end mb-2 advanced-filter-row">
+                <div class="col-12 col-md-3">
+                  <label class="form-label form-label-sm mb-1">Column</label>
+                  <select name="filter_column[]" class="form-select form-select-sm filter-column-select">
+                    {% for group, choices in form.fields.columns.choices %}
+                      <optgroup label="{{ group }}">
+                      {% for value, label in choices %}
+                        <option value="{{ value }}" {% if value == row.column %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                      </optgroup>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-12 col-md-2">
+                  <label class="form-label form-label-sm mb-1">Operator</label>
+                  <select name="filter_operator[]" class="form-select form-select-sm">
+                    <option value="exact" {% if row.operator == 'exact' %}selected{% endif %}>Equals</option>
+                    <option value="icontains" {% if row.operator == 'icontains' %}selected{% endif %}>Contains</option>
+                    <option value="gt" {% if row.operator == 'gt' %}selected{% endif %}>&gt;</option>
+                    <option value="lt" {% if row.operator == 'lt' %}selected{% endif %}>&lt;</option>
+                    <option value="gte" {% if row.operator == 'gte' %}selected{% endif %}>&ge;</option>
+                    <option value="lte" {% if row.operator == 'lte' %}selected{% endif %}>&le;</option>
+                    <option value="isnull" {% if row.operator == 'isnull' %}selected{% endif %}>Is Empty</option>
+                    <option value="notnull" {% if row.operator == 'notnull' %}selected{% endif %}>Is Not Empty</option>
+                  </select>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label form-label-sm mb-1">Value</label>
+                  <input type="text" name="filter_value[]" class="form-control form-control-sm" value="{{ row.value|default:'' }}" />
+                </div>
+                <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
+                  <button type="button" class="btn btn-outline-danger btn-sm remove-filter-row" title="Remove filter row"><i class="bi bi-dash-circle"></i></button>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="row g-2 align-items-end mb-2 advanced-filter-row">
+              <div class="col-12 col-md-3">
+                <label class="form-label form-label-sm mb-1">Column</label>
+                <select name="filter_column[]" class="form-select form-select-sm filter-column-select">
+                  {% for group, choices in form.fields.columns.choices %}
+                    <optgroup label="{{ group }}">
+                    {% for value, label in choices %}
+                      <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                    </optgroup>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-2">
+                <label class="form-label form-label-sm mb-1">Operator</label>
+                <select name="filter_operator[]" class="form-select form-select-sm">
+                  <option value="exact">Equals</option>
+                  <option value="icontains">Contains</option>
+                  <option value="gt">&gt;</option>
+                  <option value="lt">&lt;</option>
+                  <option value="gte">&ge;</option>
+                  <option value="lte">&le;</option>
+                  <option value="isnull">Is Empty</option>
+                  <option value="notnull">Is Not Empty</option>
+                </select>
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label form-label-sm mb-1">Value</label>
+                <input type="text" name="filter_value[]" class="form-control form-control-sm" />
+              </div>
+              <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
+                <button type="button" class="btn btn-outline-danger btn-sm remove-filter-row" title="Remove filter row"><i class="bi bi-dash-circle"></i></button>
+              </div>
+            </div>
+          {% endif %}
+          <!-- Hidden template row for JS cloning -->
+          <div class="row g-2 align-items-end mb-2 advanced-filter-row template" style="display:none;">
             <div class="col-12 col-md-3">
               <label class="form-label form-label-sm mb-1">Column</label>
-              <select name="filter_column[]" class="form-select form-select-sm filter-column-select">
+              <select class="form-select form-select-sm filter-column-select">
                 {% for group, choices in form.fields.columns.choices %}
                   <optgroup label="{{ group }}">
                   {% for value, label in choices %}
@@ -100,7 +163,7 @@
             </div>
             <div class="col-12 col-md-2">
               <label class="form-label form-label-sm mb-1">Operator</label>
-              <select name="filter_operator[]" class="form-select form-select-sm">
+              <select class="form-select form-select-sm">
                 <option value="exact">Equals</option>
                 <option value="icontains">Contains</option>
                 <option value="gt">&gt;</option>
@@ -113,7 +176,7 @@
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label form-label-sm mb-1">Value</label>
-              <input type="text" name="filter_value[]" class="form-control form-control-sm" />
+              <input type="text" class="form-control form-control-sm" />
             </div>
             <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
               <button type="button" class="btn btn-outline-danger btn-sm remove-filter-row" title="Remove filter row"><i class="bi bi-dash-circle"></i></button>
@@ -139,21 +202,31 @@
           const filterRows = document.getElementById('advanced-filter-rows');
           const addBtn = document.getElementById('add-filter-row');
           function addRow() {
-            const row = filterRows.querySelector('.advanced-filter-row');
-            const newRow = row.cloneNode(true);
-            newRow.querySelectorAll('input,select').forEach(el => el.value = '');
+            const template = filterRows.querySelector('.advanced-filter-row.template');
+            const newRow = template.cloneNode(true);
+            newRow.classList.remove('template');
+            newRow.style.display = '';
+            // Add name attributes to inputs/selects
+            newRow.querySelectorAll('select').forEach((el, idx) => {
+              if (el.classList.contains('filter-column-select')) {
+                el.name = 'filter_column[]';
+              } else {
+                el.name = 'filter_operator[]';
+              }
+            });
+            newRow.querySelector('input').name = 'filter_value[]';
             filterRows.appendChild(newRow);
             updateRemoveButtons();
           }
           function removeRow(e) {
-            if (filterRows.querySelectorAll('.advanced-filter-row').length > 1) {
+            if (filterRows.querySelectorAll('.advanced-filter-row:not(.template)').length > 1) {
               e.target.closest('.advanced-filter-row').remove();
             }
             updateRemoveButtons();
           }
           function updateRemoveButtons() {
             filterRows.querySelectorAll('.remove-filter-row').forEach(btn => {
-              btn.disabled = filterRows.querySelectorAll('.advanced-filter-row').length === 1;
+              btn.disabled = filterRows.querySelectorAll('.advanced-filter-row:not(.template)').length === 1;
             });
           }
           addBtn.addEventListener('click', addRow);
@@ -163,58 +236,6 @@
             }
           });
           updateRemoveButtons();
-        });
-      </script>
-      <script>
-        // Restore columns and filters from loaded template, but do NOT auto-submit
-        document.addEventListener('DOMContentLoaded', function() {
-          let loadedColumns = window.LOADED_TEMPLATE_COLUMNS;
-          let loadedFilters = window.LOADED_TEMPLATE_FILTERS;
-          if (typeof loadedColumns === 'string') try { loadedColumns = JSON.parse(loadedColumns); } catch(e) {}
-          if (typeof loadedFilters === 'string') try { loadedFilters = JSON.parse(loadedFilters); } catch(e) {}
-
-          // Restore columns
-          if (loadedColumns && Array.isArray(loadedColumns) && loadedColumns.length > 0) {
-            document.querySelectorAll('#columnModal input[name="columns"]').forEach(cb => cb.checked = false);
-            loadedColumns.forEach(function(col) {
-              var cb = document.getElementById('col_' + col);
-              if (cb) cb.checked = true;
-            });
-            // Update hidden inputs in the main form
-            const mainForm = document.getElementById('advanced-filter-form');
-            if (mainForm) {
-              mainForm.querySelectorAll('input[name="columns"]').forEach(e => e.remove());
-              loadedColumns.forEach(function(col) {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'columns';
-                input.value = col;
-                mainForm.appendChild(input);
-              });
-            }
-          }
-
-          // Restore advanced filters
-          if (loadedFilters && typeof loadedFilters === 'object' && loadedFilters['filter_column[]']) {
-            const filterRows = document.getElementById('advanced-filter-rows');
-            if (filterRows) {
-              let firstRow = filterRows.querySelector('.advanced-filter-row');
-              filterRows.innerHTML = '';
-              let cols = loadedFilters['filter_column[]'] || [];
-              let ops = loadedFilters['filter_operator[]'] || [];
-              let vals = loadedFilters['filter_value[]'] || [];
-              for (let i = 0; i < cols.length; i++) {
-                let newRow = firstRow.cloneNode(true);
-                newRow.querySelector('select[name="filter_column[]"]').value = cols[i];
-                newRow.querySelector('select[name="filter_operator[]"]').value = ops[i] || 'exact';
-                newRow.querySelector('input[name="filter_value[]"]').value = vals[i] || '';
-                filterRows.appendChild(newRow);
-              }
-              if (cols.length === 0) filterRows.appendChild(firstRow);
-            }
-          }
-
-          // No auto-submit! User must press Generate to run the report after loading a template.
         });
       </script>
       <small class="text-muted">Add multiple filter conditions as needed. Filters are combined with AND.</small>
@@ -267,7 +288,8 @@
           const checked = modal.querySelectorAll('input[name="columns"]:checked');
           // Remove all existing hidden column inputs from the main form
           const mainForm = document.getElementById('advanced-filter-form');
-          mainForm.querySelectorAll('input[name="columns"]').forEach(e => e.remove());
+          // Only remove hidden column inputs, not filter fields
+          mainForm.querySelectorAll('input[type="hidden"][name="columns"]').forEach(e => e.remove());
           // Add hidden inputs for each checked column
           checked.forEach(cb => {
             const input = document.createElement('input');
@@ -276,27 +298,84 @@
             input.value = cb.value;
             mainForm.appendChild(input);
           });
-          // Submit the main form
+          // Submit the main form (all filter fields and values are preserved)
           mainForm.submit();
         });
       }
     });
   </script>
 
-  <!-- Report Results Section -->
-  <div class="card shadow-sm printable-report">
-    <div class="card-body">
-      {% if equipments %}
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <h5 class="mb-0">Report Results</h5>
-          </div>
-          <div class="no-print">
-            <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-success btn-sm"><i class="bi bi-file-earmark-spreadsheet"></i> Export CSV</a>
-            <button onclick="window.print()" class="btn btn-secondary btn-sm"><i class="bi bi-printer"></i> Print</button>
-          </div>
+  <script>
+  // Keep hidden column inputs in sync with modal checkboxes before any form submit
+  function syncColumnInputs() {
+    const modal = document.getElementById('columnModal');
+    const checked = modal.querySelectorAll('input[name="columns"]:checked');
+    const mainForm = document.getElementById('advanced-filter-form');
+    // Remove all existing hidden column inputs
+    mainForm.querySelectorAll('input[type="hidden"][name="columns"]').forEach(e => e.remove());
+    // Add hidden inputs for each checked column
+    checked.forEach(cb => {
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'columns';
+      input.value = cb.value;
+      mainForm.appendChild(input);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    // Attach to form submit
+    const mainForm = document.getElementById('advanced-filter-form');
+    if (mainForm) {
+      mainForm.addEventListener('submit', function(e) {
+        syncColumnInputs();
+      });
+    }
+    // Also update on Apply in modal (for instant feedback)
+    const applyBtn = document.getElementById('apply-columns-btn');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function() {
+        syncColumnInputs();
+        mainForm.submit();
+      });
+    }
+  });
+  </script>
+
+  
+<!-- Report Results Section -->
+<div class="card shadow-sm printable-report">
+  <div class="card-body">
+
+    <!-- Print Header -->
+    <div class="print-header text-center border-bottom pb-3 mb-4">
+      <div class="d-flex align-items-start justify-content-end">
+        <div class="text-end me-3">
+          <small><strong>Date:</strong>{% now "F d, Y - h:i A" %}</small>
         </div>
-        {% if selected_columns %}
+      </div>
+      <div class="d-flex align-items-center justify-content-center">
+        <img src="{% static 'image/wes_logo.png' %}" alt="WESMAARRDEC Logo" style="height: 60px;">
+        <h4 class="fw-bold" style="letter-spacing: 2px;">WESMAARRDEC</h4>
+      </div>
+
+      <p class="mb-0" style="font-size: 18px;">Equipment Inventory Management System</p>
+      <h4 class="mt-2 mb-0">Generated Report</h4>
+    </div>
+
+    {% if equipments %}
+      <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+        <h5 class="mb-0">Report Results</h5>
+        <div>
+          <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+          </a>
+          <button onclick="window.print()" class="btn btn-secondary btn-sm">
+            <i class="bi bi-printer"></i> Print
+          </button>
+        </div>
+      </div>
+
+      {% if selected_columns %}
         <div class="table-responsive">
           <table class="table table-bordered table-sm align-middle">
             <thead class="table-light">
@@ -307,30 +386,35 @@
               </tr>
             </thead>
             <tbody>
-            {% for eq in equipments %}
-              <tr>
-                {% for col in selected_columns %}
-                  <td>
-                    {% if col == 'category' %}{{ eq.category }}
-                    {% elif col == 'status' %}{{ eq.status }}
-                    {% elif col == 'created_at' %}{{ eq.created_at|date:'Y-m-d' }}
-                    {% elif col == 'updated_at' %}{{ eq.updated_at|date:'Y-m-d' }}
-                    {% elif col == 'item_amount' %}{{ eq.item_amount }}
-                    {% elif col == 'user_image' %}<img src="{{ eq.user_image.url }}" alt="" style="max-width:50px;max-height:50px;">{% else %}{{ eq|getattribute:col }}{% endif %}
-                  </td>
-                {% endfor %}
-              </tr>
-            {% endfor %}
+              {% for eq in equipments %}
+                <tr>
+                  {% for col in selected_columns %}
+                    <td>
+                      {% if col == 'category' %}{{ eq.category }}
+                      {% elif col == 'status' %}{{ eq.status }}
+                      {% elif col == 'created_at' %}{{ eq.created_at|date:'Y-m-d' }}
+                      {% elif col == 'updated_at' %}{{ eq.updated_at|date:'Y-m-d' }}
+                      {% elif col == 'item_amount' %}{{ eq.item_amount|floatformat:2|intcomma }}
+                      {% elif col == 'user_image' %}
+                        <img src="{{ eq.user_image.url }}" alt="Image" style="max-width:50px;max-height:50px;">
+                      {% else %}
+                        {{ eq|getattribute:col }}
+                      {% endif %}
+                    </td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
             </tbody>
           </table>
         </div>
-        {% else %}
-        <p class="text-muted">Please select at least one column to display the report.</p>
-        {% endif %}
       {% else %}
-        <p class="text-muted">No results found.</p>
+        <p class="text-muted">Please select at least one column to display the report.</p>
       {% endif %}
-    </div>
+    {% else %}
+      <p class="text-muted">No results found.</p>
+    {% endif %}
   </div>
+</div>
+
 </div>
 {% endblock %}
