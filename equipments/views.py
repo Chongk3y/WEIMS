@@ -17,7 +17,10 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User, Group
 # Third-party imports
 import openpyxl
+from django.db.models import Count
+from django.utils import timezone
 from django.db.models.functions import TruncMonth
+from datetime import timedelta
 
 # Local app imports
 from .models import Equipment, Category, Status
@@ -980,15 +983,78 @@ def history_logs(request):
 
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def reports_view(request):
-    equipments = Equipment.objects.select_related('category', 'status').all()
-    categories = Category.objects.all()
-    statuses = Status.objects.all()
-    return render(request, 'equipments/reports.html', {
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.db.models.functions import TruncMonth
+    from django.db.models import Count, Q
+
+    equipments = Equipment.objects.filter(is_archived=False).select_related('category', 'status')
+
+    total_items = equipments.count()
+    total_categories = Category.objects.count()
+    total_statuses = Status.objects.count()
+
+    by_category = equipments.values('category__name').annotate(total=Count('id')).order_by('category__name')
+    by_status = equipments.values('status__name').annotate(total=Count('id')).order_by('status__name')
+
+    # Monthly additions
+    today = timezone.now().date().replace(day=1)
+    months = [today - timedelta(days=30 * i) for i in range(11, -1, -1)]
+    months = [m.replace(day=1) for m in months]
+    monthly_raw = (
+        equipments.annotate(month=TruncMonth('created_at'))
+        .values('month')
+        .annotate(count=Count('id'))
+    )
+    month_map = {m['month'].date(): m['count'] for m in monthly_raw}
+    monthly = [{'month': m, 'count': month_map.get(m, 0)} for m in months]
+
+    # Age distribution
+    now = timezone.now().date()
+    age_buckets = {
+        '< 1 yr': Q(item_purdate__gte=now - timedelta(days=365)),
+        '1–3 yrs': Q(item_purdate__lt=now - timedelta(days=365)) & Q(item_purdate__gte=now - timedelta(days=365 * 3)),
+        '3–5 yrs': Q(item_purdate__lt=now - timedelta(days=365 * 3)) & Q(item_purdate__gte=now - timedelta(days=365 * 5)),
+        '> 5 yrs': Q(item_purdate__lt=now - timedelta(days=365 * 5)),
+    }
+    age_distribution = [{'label': label, 'count': equipments.filter(cond).count()} for label, cond in age_buckets.items()]
+
+    # Chart data
+    status_labels = [s['status__name'] for s in by_status]
+    status_counts = [s['total'] for s in by_status]
+
+    category_labels = [c['category__name'] for c in by_category]
+    category_counts = [c['total'] for c in by_category]
+
+    month_labels = [m['month'].strftime('%b %Y') for m in monthly]
+    month_counts = [m['count'] for m in monthly]
+
+    context = {
         'equipments': equipments,
-        'categories': categories,
-        'statuses': statuses,
-    })
+        'categories': Category.objects.all(),
+        'statuses': Status.objects.all(),
+
+        'total_items': total_items,
+        'total_categories': total_categories,
+        'total_statuses': total_statuses,
+        'by_category': by_category,
+        'by_status': by_status,
+        'monthly': monthly,
+        'age_distribution': age_distribution,
+
+        'status_labels': status_labels,
+        'status_counts': status_counts,
+        'category_labels': category_labels,
+        'category_counts': category_counts,
+        'month_labels': month_labels,
+        'month_counts': month_counts,
+    }
+    return render(request, 'equipments/reports.html', context)
+
+ 
+
 
 
 @login_required

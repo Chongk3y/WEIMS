@@ -4,38 +4,86 @@
 
 {% block content %}
 <div class="container-fluid py-3 px-3">
+
+  <!-- Header -->
   <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <h5 class="fw-semibold mb-0">📊 Equipment Reports</h5>
     <div class="d-flex flex-wrap gap-2 ms-auto">
       <a href="{% url 'equipments:export_csv' %}" class="btn btn-outline-secondary btn-sm">
         <i class="bi bi-download"></i> CSV
       </a>
-      
     </div>
   </div>
 
-  <!-- Filters -->
-  <div class="row gx-2 gy-2 align-items-center mb-3">
-    
-    <div class="col-md-3 col-sm-6">
-      <select id="categoryFilter" class="form-select form-select-sm">
-        <option value="">All Categories</option>
-        {% for category in categories %}
-          <option value="{{ category.name|escapejs }}">{{ category.name }}</option>
-        {% endfor %}
-      </select>
+  <!-- Summary Cards -->
+  <div class="row mb-4">
+    <div class="col-sm-4">
+      <div class="card text-white bg-primary mb-2">
+        <div class="card-body">
+          <h6 class="card-title">Total Items</h6>
+          <p class="card-text fs-3">{{ total_items }}</p>
+        </div>
+      </div>
     </div>
-    <div class="col-md-3 col-sm-6">
-      <select id="statusFilter" class="form-select form-select-sm">
-        <option value="">All Statuses</option>
-        {% for status in statuses %}
-          <option value="{{ status.name|escapejs }}">{{ status.name }}</option>
-        {% endfor %}
-      </select>
+    <div class="col-sm-4">
+      <div class="card text-white bg-success mb-2">
+        <div class="card-body">
+          <h6 class="card-title">Categories</h6>
+          <p class="card-text fs-3">{{ total_categories }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card text-white bg-info mb-2">
+        <div class="card-body">
+          <h6 class="card-title">Statuses</h6>
+          <p class="card-text fs-3">{{ total_statuses }}</p>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Table -->
+
+
+ 
+<div class="row mb-4  align-items-stretch">
+  <div class="col-md-6 d-flex">
+    <div class="card border-0 shadow-sm flex-fill">
+      <div class="card-body p-2 d-flex flex-column" style="height=100px;">
+        <h6 class="card-title mb-2">Equipment by Status</h6>
+        <div class="flex-grow-1">
+          <canvas id="statusChart" style="width:100%; height:100px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 d-flex">
+    <div class="card border-0 shadow-sm flex-fill">
+      <div class="card-body p-2 d-flex flex-column">
+        <h6 class="card-title mb-2">Equipment by Category</h6>
+        <div class="flex-grow-1">
+          <canvas id="categoryChart" style="width:100%; height:100%;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 d-flex">
+    <div class="card border-0 shadow-sm flex-fill">
+      <div class="card-body p-2 d-flex flex-column">
+        <h6 class="card-title mb-2">Monthly Additions</h6>
+        <div class="flex-grow-1">
+          <canvas id="monthlyChart" style="width:100%; height:120px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+  <!-- Detailed Equipment Table -->
   <div class="card shadow-sm border-0">
     <div class="card-body p-2">
       <div class="table-responsive">
@@ -125,6 +173,7 @@
       font-size: 0.75rem;
     }
   }
+ 
 </style>
 {% endblock %}
 
@@ -134,22 +183,68 @@
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-$(function () {
-  // Initialize DataTable with full pagination controls
+document.addEventListener("DOMContentLoaded", function () {
+  const statusCtx = document.getElementById('statusChart').getContext('2d');
+  new Chart(statusCtx, {
+    type: 'pie',
+    data: {
+      labels: {{ status_labels|safe }},
+      datasets: [{
+        data: {{ status_counts|safe }},
+        backgroundColor: ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#6610f2']
+      }]
+    }
+  });
+
+  const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+  new Chart(categoryCtx, {
+    type: 'bar',
+    data: {
+      labels: {{ category_labels|safe }},
+      datasets: [{
+        label: 'Count',
+        data: {{ category_counts|safe }},
+        backgroundColor: '#17a2b8'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+  new Chart(monthlyCtx, {
+    type: 'line',
+    data: {
+      labels: {{ month_labels|safe }},
+      datasets: [{
+        label: 'Monthly Additions',
+        data: {{ month_counts|safe }},
+        borderColor: '#007bff',
+        fill: false,
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+});
+ 
+// Initialize DataTable
   const table = $('#reportTable').DataTable({
     responsive: true,
     pageLength: 5,
     lengthMenu: [5, 10, 25, 50],
-    dom: 'lfrtip'  // l = length menu, f = filter, r = processing, t = table, i = info, p = pagination
+    dom: 'lfrtip'
   });
 
-  // Global search
-  $('#reportSearch').on('keyup', function () {
-    table.search(this.value).draw();
-  });
-
-  // Category / Status filters
+  // Filters
   $('#categoryFilter, #statusFilter').on('change', function () {
     const cat = $('#categoryFilter').val().toLowerCase();
     const stat = $('#statusFilter').val().toLowerCase();
@@ -159,25 +254,24 @@ $(function () {
                    (!stat || d[3].toLowerCase().includes(stat));
       $(this.node()).toggle(show);
     });
-    // redraw to update pagination after hide/show
     table.draw(false);
   });
 
-  // Modal population
+  // Modal details
   $('#reportDetailsModal').on('show.bs.modal', function (evt) {
     const button = evt.relatedTarget;
     const row = $(button).closest('tr');
     const get = key => row.data(key) || '—';
 
     const details = [
-      ['Report Type',   get('reporttype')],
-      ['Description',   get('description')],
-      ['Status',        get('status')],
-      ['Submitted By',  get('submitted')],
-      ['Report Date',   get('reportdate')],
-      ['Updated By',    get('updatedby')],
-      ['Updated Time',  get('updatedat')],
-      ['Has Attachment?', get('hasattachment')]
+      ['Report Type',     get('reporttype')],
+      ['Description',     get('description')],
+      ['Status',          get('status')],
+      ['Submitted By',    get('submitted')],
+      ['Report Date',     get('reportdate')],
+      ['Updated By',      get('updatedby')],
+      ['Updated Time',    get('updatedat')],
+      ['Has Attachment?', get('hasattachment')],
     ];
 
     if (row.data('attachment-url')) {
@@ -186,9 +280,10 @@ $(function () {
 
     const $tbody = $('#reportDetailsTableBody').empty();
     details.forEach(([label, val]) => {
-      $tbody.append(`<tr><th style="width: 30%">${label}</th><td>${val}</td></tr>`);
+      $tbody.append(`<tr><th style="width:30%">${label}</th><td>${val}</td></tr>`);
     });
   });
-});
+
 </script>
+
 {% endblock %}
