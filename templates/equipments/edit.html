@@ -1,113 +1,119 @@
 {% extends 'base.html' %}
 {% block title %}Edit Equipment{% endblock %}
-{% block content %}
 {% load static %}
-<div class="container py-2 px-2" style="max-width: 100vw;">
-    <div class="card shadow-sm mt-4">
-        <div class="card-header text-white" style="background-color: #0e4a39;">
-            <h4 class="mb-0">Edit Equipment</h4>
-        </div>
+{% block content %}
 
-        <div class="card-body">
-            <form action="" method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="user_image">Equipment Image</label>
-                        <input type="file" class="form-control" name="user_image" id="user_image">
-                        {% if equipment.user_image %}
-                            <img src="{{ equipment.user_image.url }}" alt="Current Image" style="max-width:100px; margin-top:10px;">
-                        {% endif %}
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="item_propertynum">Property Number</label>
-                        <input type="text" class="form-control" name="item_propertynum" id="item_propertynum" value="{{ equipment.item_propertynum }}">
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="item_name">Item Name</label>
-                        <input type="text" class="form-control" name="item_name" id="item_name" value="{{ equipment.item_name }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="item_desc">Item Description</label>
-                        <input type="text" class="form-control" name="item_desc" id="item_desc" value="{{ equipment.item_desc }}">
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="item_purdate">Purchase Date</label>
-                        <input type="date" name="item_purdate" class="form-control" value="{{ form.item_purdate.value|default_if_none:'' }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="po_number">PO Number</label>
-                        <input type="text" class="form-control" name="po_number" id="po_number" value="{{ equipment.po_number }}">
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="fund_source">Fund Source</label>
-                        <input type="text" class="form-control" name="fund_source" id="fund_source" value="{{ equipment.fund_source }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="supplier">Supplier</label>
-                        <input type="text" class="form-control" name="supplier" id="supplier" value="{{ equipment.supplier }}">
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="item_amount">Amount</label>
-                        <input type="number" step="0.01" class="form-control" name="item_amount" id="item_amount" value="{{ equipment.item_amount }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="assigned_to">Assigned To</label>
-                        <input type="text" class="form-control" name="assigned_to" id="assigned_to" value="{{ equipment.assigned_to }}">
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="location">Location</label>
-                        <input type="text" class="form-control" name="location" id="location" value="{{ equipment.location }}">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="end_user">End User</label>
-                        <input type="text" class="form-control" name="end_user" id="end_user" value="{{ equipment.end_user }}">
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="emp_id">Employee</label>
-                        <select class="form-select" name="emp_id" id="emp_id">
-                            {% for user in users %}
-                                <option value="{{ user.id }}" {% if equipment.emp_id == user.id %}selected{% endif %}>{{ user.username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" for="category_id">Category</label>
-                        <select class="form-select" name="category_id" id="category_id">
-                            {% for cat in categories %}
-                                <option value="{{ cat.id }}" {% if equipment.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="row mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label" for="status_id">Status</label>
-                        <select class="form-select" name="status_id" id="status_id">
-                            {% for stat in statuses %}
-                                <option value="{{ stat.id }}" {% if equipment.status_id == stat.id %}selected{% endif %}>{{ stat.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="d-flex justify-content-end mt-4">
-                    <button type="submit" class="btn btn-custom me-2">Save Changes</button>
-                    <a href="{% url 'equipments:index' %}" class="btn btn-secondary px-4">Cancel</a>
-                </div>
-            </form>
-        </div>
+<div class="container py-3">
+  <div class="card shadow-sm border-0 mx-auto" style="max-width: 920px;">
+    <div class="card-header text-white" style="background-color: #0e4a39;">
+      <h5 class="mb-0">Edit Equipment</h5>
     </div>
+
+    <div class="card-body p-4">
+      <form action="" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="row g-3">
+
+          <!-- 🖼 Image & Property -->
+          <div class="col-12 small fw-bold text-secondary border-bottom pb-1">Equipment Image & Info</div>
+          <div class="col-md-6">
+            <label class="form-label small">Equipment Image</label>
+            <input type="file" class="form-control form-control-sm" name="user_image" id="user_image">
+            {% if equipment.user_image %}
+            <img src="{{ equipment.user_image.url }}" alt="Current Image" style="max-width:100px; margin-top:10px;">
+            {% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Property Number</label>
+            <input type="text" class="form-control form-control-sm" name="item_propertynum" value="{{ equipment.item_propertynum }}">
+          </div>
+
+          <!-- 📄 Details -->
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Details</div>
+          <div class="col-md-6">
+            <label class="form-label small">Item Name</label>
+            <input type="text" class="form-control form-control-sm" name="item_name" value="{{ equipment.item_name }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Item Description</label>
+            <input type="text" class="form-control form-control-sm" name="item_desc" value="{{ equipment.item_desc }}">
+          </div>
+
+          <!-- 🧾 Purchase -->
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Purchase Information</div>
+          <div class="col-md-6">
+            <label class="form-label small">Purchase Date</label>
+            <input type="date" name="item_purdate" class="form-control form-control-sm" value="{{ form.item_purdate.value|default_if_none:'' }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">PO Number</label>
+            <input type="text" class="form-control form-control-sm" name="po_number" value="{{ equipment.po_number }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Fund Source</label>
+            <input type="text" class="form-control form-control-sm" name="fund_source" value="{{ equipment.fund_source }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Supplier</label>
+            <input type="text" class="form-control form-control-sm" name="supplier" value="{{ equipment.supplier }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Amount</label>
+            <input type="number" step="0.01" class="form-control form-control-sm" name="item_amount" value="{{ equipment.item_amount }}">
+          </div>
+
+          <!-- 🧑‍💼 Assignment -->
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Assignment & Location</div>
+          <div class="col-md-6">
+            <label class="form-label small">Assigned To</label>
+            <input type="text" class="form-control form-control-sm" name="assigned_to" value="{{ equipment.assigned_to }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">End User</label>
+            <input type="text" class="form-control form-control-sm" name="end_user" value="{{ equipment.end_user }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Location</label>
+            <input type="text" class="form-control form-control-sm" name="location" value="{{ equipment.location }}">
+          </div>
+
+          <!-- 📁 Classification -->
+          <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Classification</div>
+          <div class="col-md-6">
+            <label class="form-label small">Employee</label>
+            <select class="form-select form-select-sm" name="emp_id">
+              {% for user in users %}
+              <option value="{{ user.id }}" {% if equipment.emp_id == user.id %}selected{% endif %}>{{ user.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Category</label>
+            <select class="form-select form-select-sm" name="category_id">
+              {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if equipment.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small">Status</label>
+            <select class="form-select form-select-sm" name="status_id">
+              {% for stat in statuses %}
+              <option value="{{ stat.id }}" {% if equipment.status_id == stat.id %}selected{% endif %}>{{ stat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- ✅ Buttons -->
+          <div class="col-12 text-end pt-3">
+            <a href="{% url 'equipments:index' %}" class="btn btn-sm btn-outline-secondary px-4">Cancel</a>
+            <button type="submit" class="btn btn-sm btn-custom px-4 me-2">Save Changes</button>
+          </div>
+
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
+
 {% endblock %}

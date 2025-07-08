@@ -10,19 +10,21 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.utils import timezone
 from django.core.paginator import Paginator
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, Q, Sum
 from django.core.exceptions import ObjectDoesNotExist
 # Django auth imports
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.models import User, Group
 # Third-party imports
 import openpyxl
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, ExtractYear
 
 # Local app imports
 from .models import Equipment, Category, Status
 from .models import EquipmentHistory
 from .models import EquipmentActionLog
+from .models import ReportTemplate
+from .forms import ReportFilterForm
 
 
 
@@ -62,7 +64,17 @@ def equipment_table_json(request):
             Q(item_name__icontains=search_value) |
             Q(item_desc__icontains=search_value) |
             Q(category__name__icontains=search_value) |
-            Q(status__name__icontains=search_value)
+            Q(status__name__icontains=search_value) |
+            Q(po_number__icontains=search_value) |
+            Q(fund_source__icontains=search_value) |
+            Q(supplier__icontains=search_value) |
+            Q(item_amount__icontains=search_value) |
+            Q(assigned_to__icontains=search_value) |
+            Q(end_user__icontains=search_value) |
+            Q(location__icontains=search_value) |
+            Q(current_location__icontains=search_value) |
+            Q(item_purdate__icontains=search_value) |
+            Q(project_name__icontains=search_value)
         )
 
     # Advanced filters
@@ -75,12 +87,31 @@ def equipment_table_json(request):
                 qs = qs.filter(item_name__icontains=value)
             elif col_idx == '4':  # Description
                 qs = qs.filter(item_desc__icontains=value)
-            elif col_idx == '5':  # Amount
-                qs = qs.filter(item_amount__icontains=value)
-            elif col_idx == '6':  # Category
-                qs = qs.filter(category__name=value)
-            elif col_idx == '7':  # Status
-                qs = qs.filter(status__name=value)
+            elif col_idx == '5':  # PO Number
+                qs = qs.filter(po_number__icontains=value)
+            elif col_idx == '6':  # Fund Source
+                qs = qs.filter(fund_source__icontains=value)
+            elif col_idx == '7':  # Supplier
+                qs = qs.filter(supplier__icontains=value)
+            elif col_idx == '8':  # Amount
+                try:
+                    qs = qs.filter(item_amount=float(value))
+                except Exception:
+                    pass
+            elif col_idx == '9':  # Assigned To
+                qs = qs.filter(assigned_to__icontains=value)
+            elif col_idx == '10':  # End User
+                qs = qs.filter(end_user__icontains=value)
+            elif col_idx == '11':  # Location
+                qs = qs.filter(location__icontains=value)
+            elif col_idx == '12':  # Current Location
+                qs = qs.filter(current_location__icontains=value)
+            elif col_idx == '13':  # Category
+                qs = qs.filter(category__name__icontains=value)
+            elif col_idx == '14':  # Status
+                qs = qs.filter(status__name__icontains=value)
+            elif col_idx == '15':  # Purchase Date
+                qs = qs.filter(item_purdate=value)
 
     # Sorting
     order_col = request.GET.get('order[0][column]', '1')
@@ -144,16 +175,23 @@ def equipment_table_json(request):
         data.append([
             '',  # 0: Checkbox placeholder
             eq.id,  # 1: hidden ID
-            f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',
-            eq.item_propertynum,
-            eq.item_name,
-            eq.item_desc if eq.item_desc else 'None',
-            eq.po_number if eq.po_number else 'None',
-            f'₱{eq.item_amount:,.2f}',
-            eq.end_user if eq.end_user else 'None',
-            eq.category.name,
-            eq.status.name,
-            actions
+            f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',  # 2: Image
+            eq.item_propertynum,  # 3: Property #
+            eq.item_name,         # 4: Name
+            eq.item_desc if eq.item_desc else 'None',  # 5: Description
+            eq.po_number if eq.po_number else 'None',  # 6: PO Number
+            f'₱{eq.item_amount:,.2f}',                 # 7: Amount
+            eq.end_user if eq.end_user else 'None',    # 8: End User
+            eq.category.name,                          # 9: Category
+            eq.status.name,                            # 10: Status
+            actions,                                   # 11: Actions
+            eq.fund_source if eq.fund_source else 'None',         # 12: Fund Source
+            eq.supplier if eq.supplier else 'None',               # 13: Supplier
+            eq.assigned_to if eq.assigned_to else 'None',         # 14: Assigned To
+            eq.location if eq.location else 'None',               # 15: Deployment Location
+            eq.current_location if eq.current_location else 'None',# 16: Current Location
+            eq.item_purdate.strftime('%Y-%m-%d') if eq.item_purdate else 'None', # 17: PO Date
+            eq.project_name if eq.project_name else 'None',       # 18: Project Name
         ])
 
     return JsonResponse({
@@ -201,6 +239,11 @@ def index(request):
     equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
     categories = Category.objects.all()
     statuses = Status.objects.all()
+    end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user='').values_list('end_user', flat=True).distinct()
+    assigned_to_list = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).distinct()
+    fund_sources = Equipment.objects.exclude(fund_source__isnull=True).exclude(fund_source='').values_list('fund_source', flat=True).distinct()
+    suppliers = Equipment.objects.exclude(supplier__isnull=True).exclude(supplier='').values_list('supplier', flat=True).distinct()
+    locations = Equipment.objects.exclude(location__isnull=True).exclude(location='').values_list('location', flat=True).distinct()
     category_id = request.GET.get('category')
     status_id = request.GET.get('status')
     date_from = request.GET.get('date_from')
@@ -228,6 +271,11 @@ def index(request):
         'equipments': page_obj,
         'categories': categories,
         'statuses': statuses,
+        'end_users': end_users,
+        'assigned_to_list': assigned_to_list,
+        'fund_sources': fund_sources,
+        'suppliers': suppliers,
+        'locations': locations,
         'selected_category': category_id,
         'selected_status': status_id,
         'date_from': date_from,
@@ -507,29 +555,34 @@ def dashboard(request):
     # Recent equipments
     recent_equipments = Equipment.objects.order_by('-id')[:5]
 
-    # Equipments added per month (last 12 months)
-    from datetime import timedelta
-    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    months = [today.replace(day=1)]
-    for _ in range(11):
-        prev = months[-1]
-        year = prev.year - 1 if prev.month == 1 else prev.year
-        month = 12 if prev.month == 1 else prev.month - 1
-        # Handle months with fewer days (e.g., Feb)
-        try:
-            months.append(prev.replace(year=year, month=month, day=1))
-        except ValueError:
-            months.append((prev - timedelta(days=1)).replace(day=1))
-    months = sorted(months)
-    monthly_counts = Equipment.objects.filter(
-        created_at__gte=months[0]
-    ).annotate(month=TruncMonth('created_at')).values('month').annotate(count=Count('id')).order_by('month')
-    month_labels = [m.strftime('%b %Y') for m in months]
-    month_data = []
-    month_map = {m['month'].strftime('%b %Y'): m['count'] for m in monthly_counts}
-    for label in month_labels:
-        month_data.append(month_map.get(label, 0))
+    # Equipments acquired per year (from PO date)
+    from django.db.models.functions import ExtractYear
+    year_qs = Equipment.objects.exclude(item_purdate=None).values(year=ExtractYear('item_purdate')).annotate(count=Count('id')).order_by('year')
+    year_labels = [str(x['year']) for x in year_qs]
+    year_data = [x['count'] for x in year_qs]
 
+    # Total number and total cost of equipment per end user (currently held)
+    enduser_qs = Equipment.objects.filter(is_archived=False, is_returned=False).exclude(end_user__isnull=True).exclude(end_user='').values('end_user').annotate(
+        count=Count('id'),
+        total=Sum('item_amount')
+    ).order_by('-count')
+    enduser_labels = [x['end_user'] for x in enduser_qs]
+    enduser_counts = [x['count'] for x in enduser_qs]
+    enduser_amounts = [float(x['total'] or 0) for x in enduser_qs]
+
+    # Equipments by Assigned To: Count and Total Cost
+    assigned_qs = Equipment.objects.filter(is_archived=False, is_returned=False).exclude(assigned_to__isnull=True).exclude(assigned_to='').values('assigned_to').annotate(
+        count=Count('id'),
+        total=Sum('item_amount')
+    ).order_by('-count')
+    assigned_labels = [x['assigned_to'] for x in assigned_qs]
+    assigned_counts = [x['count'] for x in assigned_qs]
+    assigned_amounts = [float(x['total'] or 0) for x in assigned_qs]
+
+    # Equipments by Item Name: Count
+    name_qs = Equipment.objects.values('item_name').annotate(count=Count('id')).order_by('-count')
+    itemname_labels = [x['item_name'] for x in name_qs]
+    itemname_counts = [x['count'] for x in name_qs]
     context = {
         'total_equipments': total_equipments,
         'total_archived': total_archived,
@@ -540,13 +593,21 @@ def dashboard(request):
         'category_labels': json.dumps(category_labels),
         'category_counts': json.dumps(category_counts),
         'recent_equipments': recent_equipments,
-        'month_labels': json.dumps(month_labels),
-        'month_data': json.dumps(month_data),
+        'month_labels': json.dumps(year_labels),  # Used by the chart, but now years
+        'month_data': json.dumps(year_data),      # Used by the chart, but now yearly counts
+        'enduser_labels': json.dumps(enduser_labels),
+        'enduser_counts': json.dumps(enduser_counts),
+        'enduser_amounts': json.dumps(enduser_amounts),
+        'assigned_labels': json.dumps(assigned_labels),
+        'assigned_counts': json.dumps(assigned_counts),
+        'assigned_amounts': json.dumps(assigned_amounts),
+        'itemname_labels': json.dumps(itemname_labels),
+        'itemname_counts': json.dumps(itemname_counts),
     }
     return render(request, 'equipments/dashboard.html', context)
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def user(request):
     users = User.objects.all().order_by('-date_joined')  # <-- Add this line
     is_admin = request.user.groups.filter(name="Admin").exists()
@@ -725,7 +786,6 @@ def export_csv(request):
 
     return response
 
-
 @login_required
 @user_passes_test(is_admin_superadmin_encoder)
 def import_excel(request):
@@ -817,7 +877,19 @@ def returned_equipment_table_json(request):
         qs = qs.filter(
             Q(item_propertynum__icontains=search_value) |
             Q(item_name__icontains=search_value) |
-            Q(item_desc__icontains=search_value)
+            Q(item_desc__icontains=search_value) |
+            Q(category__name__icontains=search_value) |
+            Q(status__name__icontains=search_value) |
+            Q(po_number__icontains=search_value) |
+            Q(fund_source__icontains=search_value) |
+            Q(supplier__icontains=search_value) |
+            Q(item_amount__icontains=search_value) |
+            Q(assigned_to__icontains=search_value) |
+            Q(end_user__icontains=search_value) |
+            Q(location__icontains=search_value) |
+            Q(current_location__icontains=search_value) |
+            Q(item_purdate__icontains=search_value) |
+            Q(project_name__icontains=search_value)
         )
 
     total = Equipment.objects.filter(is_returned=True).count()
@@ -875,6 +947,7 @@ def return_equipment(request):
     return redirect('equipments:index')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def archived_equipments(request):
     return render(request, 'equipments/archived_list.html')
 
@@ -907,7 +980,19 @@ def archived_equipment_table_json(request):
         qs = qs.filter(
             Q(item_propertynum__icontains=search_value) |
             Q(item_name__icontains=search_value) |
-            Q(item_desc__icontains=search_value)
+            Q(item_desc__icontains=search_value) |
+            Q(category__name__icontains=search_value) |
+            Q(status__name__icontains=search_value) |
+            Q(po_number__icontains=search_value) |
+            Q(fund_source__icontains=search_value) |
+            Q(supplier__icontains=search_value) |
+            Q(item_amount__icontains=search_value) |
+            Q(assigned_to__icontains=search_value) |
+            Q(end_user__icontains=search_value) |
+            Q(location__icontains=search_value) |
+            Q(current_location__icontains=search_value) |
+            Q(item_purdate__icontains=search_value) |
+            Q(project_name__icontains=search_value)
         )
 
     total = Equipment.objects.filter(is_archived=True).count()
@@ -974,6 +1059,7 @@ def equipment_history_json(request, equipment_id):
     return JsonResponse(data, safe=False)
 
 @login_required
+@user_passes_test(is_admin_or_superadmin)
 def history_logs(request):
     logs = EquipmentActionLog.objects.select_related('user', 'equipment').order_by('-timestamp')[:500]  # Limit for performance
     return render(request, 'equipments/history_logs.html', {'logs': logs})
@@ -986,4 +1072,264 @@ def clear_history_logs(request):
         EquipmentHistory.objects.all().delete()  # Optional: clear field-level history too
         messages.success(request, "All history logs have been cleared.")
     return redirect('equipments:history_logs')
+
+@login_required
+@user_passes_test(is_admin_superadmin_encoder)
+def reports_page(request):
+    from .models import Equipment, Category
+    from django.db.models import Sum
+    categories = Category.objects.all()
+    suppliers = Equipment.objects.exclude(supplier__isnull=True).exclude(supplier='').values_list('supplier', flat=True).distinct()
+    selected_category = request.GET.get('category', '')
+    selected_supplier = request.GET.get('supplier', '')
+    eqs = Equipment.objects.all()
+    if selected_category:
+        eqs = eqs.filter(category_id=selected_category)
+    if selected_supplier:
+        eqs = eqs.filter(supplier=selected_supplier)
+    total_asset = eqs.aggregate(total=Sum('item_amount'))['total'] or 0
+
+    # Asset value by category
+    asset_by_category = (
+        eqs.values('category__name')
+        .annotate(total=Sum('item_amount'))
+        .order_by('-total')
+    )
+
+    # Asset count by category
+    asset_count_by_category = (
+        eqs.values('category__name')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+
+    # Top suppliers by asset value
+    top_suppliers = (
+        eqs.values('supplier')
+        .annotate(total=Sum('item_amount'))
+        .order_by('-total')[:10]
+    )
+
+    # Asset status breakdown
+    status_breakdown = (
+        eqs.values('status__name')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('-count')
+    )
+
+    # Recently added assets (last 5)
+    recent_assets = eqs.order_by('-created_at')[:5]
+
+    # Monthly purchases (current year)
+    from django.utils import timezone
+    from django.db.models.functions import TruncMonth, ExtractYear
+    now = timezone.now()
+    current_year = now.year
+    monthly_purchases = (
+        eqs.filter(item_purdate__year=current_year)
+        .annotate(month=TruncMonth('item_purdate'))
+        .values('month')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('month')
+    )
+
+    # Yearly purchases
+    yearly_purchases = (
+        eqs.exclude(item_purdate=None)
+        .annotate(year=ExtractYear('item_purdate'))
+        .values('year')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('year')
+    )
+
+    # Assets by Location and Status
+    assets_by_location_status = (
+        eqs.values('location', 'status__name')
+        .annotate(count=Count('id'), total=Sum('item_amount'))
+        .order_by('location', 'status__name')
+    )
+
+    # For filter dropdowns
+    locations = Equipment.objects.values_list('location', flat=True).distinct().order_by('location')
+    statuses = Equipment.objects.values_list('status__name', flat=True).distinct().order_by('status__name')
+    selected_location = request.GET.get('location', '')
+    selected_status = request.GET.get('status', '')
+    if selected_location:
+        assets_by_location_status = assets_by_location_status.filter(location=selected_location)
+    if selected_status:
+        assets_by_location_status = assets_by_location_status.filter(status__name=selected_status)
+
+    # CSV Export
+    if request.GET.get('export_location_status') == '1':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="assets_by_location_status.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['Location', 'Status', 'Asset Count', 'Total Value (₱)'])
+        for row in assets_by_location_status:
+            writer.writerow([
+                row['location'] or '(None)',
+                row['status__name'] or '(None)',
+                row['count'],
+                f"{row['total']:.2f}" if row['total'] is not None else '0.00'
+            ])
+        return response
+
+    context = {
+        'categories': categories,
+        'suppliers': suppliers,
+        'selected_category': selected_category,
+        'selected_supplier': selected_supplier,
+        'total_asset': total_asset,
+        'asset_by_category': asset_by_category,
+        'asset_count_by_category': asset_count_by_category,
+        'top_suppliers': top_suppliers,
+        'status_breakdown': status_breakdown,
+        'recent_assets': recent_assets,
+        'monthly_purchases': monthly_purchases,
+        'yearly_purchases': yearly_purchases,
+        'assets_by_location_status': assets_by_location_status,
+        'locations': locations,
+        'statuses': statuses,
+        'selected_location': selected_location,
+        'selected_status': selected_status,
+    }
+    return render(request, 'reports/reports.html', context)
+
+@login_required
+def generate_report(request):
+    from .models import Equipment
+    form = ReportFilterForm(request.GET or None)
+    equipments = Equipment.objects.all()
+    selected_columns = []  # Ensure selected_columns is always defined
+
+    # --- Advanced Filter Logic ---
+    from django.db.models import Q
+    from datetime import datetime as dt
+    filter_columns = request.GET.getlist('filter_column[]')
+    filter_operators = request.GET.getlist('filter_operator[]')
+    filter_values = request.GET.getlist('filter_value[]')
+    filter_rows = []
+    for col, op, val in zip(filter_columns, filter_operators, filter_values):
+        filter_rows.append({'column': col, 'operator': op, 'value': val})
+    advanced_filters = Q()
+    field_type_map = {
+        'id': int,
+        'item_amount': float,
+        'created_at': 'date',
+        'updated_at': 'date',
+        'item_purdate': 'date',
+        'category': 'fk',
+        'status': 'fk',
+        'is_returned': 'bool',
+        'is_archived': 'bool',
+    }
+    for col, op, val in zip(filter_columns, filter_operators, filter_values):
+        if not col:
+            continue
+        field_type = field_type_map.get(col, str)
+        val_conv = val
+        try:
+            if op in ['isnull', 'notnull']:
+                advanced_filters &= Q(**{f"{col}__isnull": op == 'isnull'})
+                continue
+            if field_type == int:
+                val_conv = int(val)
+            elif field_type == float:
+                val_conv = float(val)
+            elif field_type == 'date':
+                try:
+                    val_conv = dt.strptime(val, '%Y-%m-%d').date()
+                except Exception:
+                    val_conv = val
+            elif field_type == 'bool':
+                val_conv = val.lower() in ['1', 'true', 'yes']
+            elif field_type == 'fk':
+                if col == 'category':
+                    from .models import Category
+                    try:
+                        val_conv = int(val)
+                        val_conv = Category.objects.get(pk=val_conv)
+                    except Exception:
+                        val_conv = Category.objects.filter(name__iexact=val).first()
+                    if val_conv:
+                        val_conv = val_conv.pk
+                elif col == 'status':
+                    from .models import Status
+                    try:
+                        val_conv = int(val)
+                        val_conv = Status.objects.get(pk=val_conv)
+                    except Exception:
+                        val_conv = Status.objects.filter(name__iexact=val).first()
+                    if val_conv:
+                        val_conv = val_conv.pk
+        except Exception:
+            val_conv = val
+        if op == 'isnull' or op == 'notnull':
+            continue
+        elif op in ['exact', 'iexact', 'icontains', 'gt', 'lt', 'gte', 'lte'] and val:
+            lookup = f"{col}__{op if op != 'exact' else 'iexact'}"
+            advanced_filters &= Q(**{lookup: val_conv})
+    if filter_columns:
+        equipments = equipments.filter(advanced_filters)
+
+    if form.is_valid() and not filter_columns:
+        if form.cleaned_data['start_date']:
+            equipments = equipments.filter(created_at__gte=form.cleaned_data['start_date'])
+        if form.cleaned_data['end_date']:
+            equipments = equipments.filter(created_at__lte=form.cleaned_data['end_date'])
+        if form.cleaned_data['status']:
+            equipments = equipments.filter(status=form.cleaned_data['status'])
+        if form.cleaned_data['category']:
+            equipments = equipments.filter(category=form.cleaned_data['category'])
+        if form.cleaned_data['assigned_to']:
+            equipments = equipments.filter(assigned_to__icontains=form.cleaned_data['assigned_to'])
+
+    # Always use the current GET data for form and selected_columns
+    form = ReportFilterForm(request.GET or None)
+    if form.is_valid():
+        selected_columns = list(form.cleaned_data.get('columns') or [])
+    else:
+        selected_columns = []
+    seen = set()
+    selected_columns = [x for x in selected_columns if not (x in seen or seen.add(x))]
+
+    # Build column_labels from model verbose_name
+    from .models import Equipment
+    column_labels = {field.name: field.verbose_name.title() for field in Equipment._meta.get_fields() if hasattr(field, 'verbose_name')}
+    # Add any missing fields from form choices (for custom/related fields)
+    for group, choices in form.fields['columns'].choices:
+        for value, label in choices:
+            if value not in column_labels:
+                column_labels[value] = label
+
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="equipment_report.csv"'
+        writer = csv.writer(response)
+        # Write header
+        writer.writerow([column_labels.get(col, col) for col in selected_columns])
+        for eq in equipments:
+            row = []
+            for col in selected_columns:
+                if col == 'category':
+                    row.append(str(eq.category) if eq.category else '')
+                elif col == 'status':
+                    row.append(str(eq.status) if eq.status else '')
+                elif col == 'created_at':
+                    row.append(eq.created_at.strftime('%Y-%m-%d') if eq.created_at else '')
+                else:
+                    row.append(getattr(eq, col, ''))
+            writer.writerow(row)
+        return response
+    context = {
+        'form': form,
+        'equipments': equipments,
+        'selected_columns': selected_columns,
+        'column_labels': column_labels,
+        'filter_rows': filter_rows or None,  # ensure persistence of filter rows
+    }
+    return render(request, 'reports/generate_report.html', context)
+
+
+
 

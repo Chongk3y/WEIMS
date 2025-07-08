@@ -140,7 +140,7 @@ class EquipmentHistory(models.Model):
     changed_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.get_action_display()} {self.field_changed} from {self.old_value} to {self.new_value}"
+        return f"{self.action} {self.field_changed} from {self.old_value} to {self.new_value}"
 
 class EquipmentActionLog(models.Model):
     ACTION_CHOICES = [
@@ -159,3 +159,13 @@ class EquipmentActionLog(models.Model):
 
     def __str__(self):
         return f"{self.get_action_display()} by {self.user} on {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+
+class ReportTemplate(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
+    columns = models.JSONField()
+    filters = models.JSONField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.user.username})"

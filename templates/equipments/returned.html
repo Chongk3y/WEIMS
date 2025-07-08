@@ -2,15 +2,20 @@
 {% load humanize %}
 {% block content %}
 <div class="container-fluid mt-4 px-4">
-  <h5 class="fw-semibold mb-0">Returned Equipment</h5>
-  <div class="card shadow-sm border-0">
-    <div class="card-body p-2">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h5 class="fw-semibold mb-0">Returned Equipment
+    </h5>
+    <span class="badge bg-success text-white">{{ total_returned }}</span>
+  </div>
+
+  <div class="card shadow-sm border-0 rounded-4">
+    <div class="card-body p-3">
       <div class="table-responsive">
-        <table id="returnedEquipmentTable" class="table compact-table">
-          <thead>
+        <table id="returnedEquipmentTable" class="table compact-table table-hover table-striped table-bordered align-middle text-nowrap small">
+          <thead class="table-success text-center align-middle">
             <tr>
               <th></th>
-              <th>ID</th>
+              <th style="display:none;">ID</th>
               <th>Image</th>
               <th>Property #</th>
               <th>Name</th>
@@ -37,7 +42,7 @@ $(document).ready(function () {
     serverSide: true,
     processing: true,
     ajax: {
-      url: '/equipments/returned/json/', // You will create this view
+      url: '/equipments/returned/json/', 
       type: 'GET'
     },
     columns: [

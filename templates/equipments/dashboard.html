@@ -22,110 +22,178 @@
 
 <div class="container-fluid py-3 px-3">
   <!-- Header -->
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="fw-semibold mb-0">Dashboard</h4>
-  </div>
 
+
+        <div class="d-flex align-items-center mb-3">
+          <div class="flex-grow-1">
+            <h4 class="fw-semibold mb-0">Dashboard</h4>
+          </div>
+          <div class="ms-auto">
+            <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm">
+              <i class="bi bi-plus-circle"></i> Add Equipment
+            </a>
+          </div>
+        </div>
+        
   <!-- Summary Cards -->
   <div class="row g-3">
+    <!-- Total -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center">
+      <div class="card shadow-sm border-0 text-center" style="background-color: #14532d;"> <!-- Solid dark green -->
         <div class="card-body p-2">
-          <small class="text-muted">Total</small>
-          <h5 class="fw-bold">{{ total_equipments }}</h5>
+          <small class="text-white">Total</small>
+          <h5 class="fw-bold text-white">{{ total_equipments }}</h5>
         </div>
       </div>
     </div>
+
+    <!-- Archived -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center">
+      <div class="card shadow-sm border-0 text-center" style="background-color: #14532d;"> <!-- Solid dark green -->
         <div class="card-body p-2">
-          <small class="text-muted">Archived</small>
-          <h5 class="fw-bold text-danger">{{ total_archived }}</h5>
+          <small class="text-white">Archived</small>
+          <h5 class="fw-bold text-white">{{ total_archived }}</h5>
         </div>
       </div>
     </div>
+
+    <!-- Returned -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center">
+      <div class="card shadow-sm border-0 text-center" style="background-color: #1a4d2e;"> <!-- Dark green variant -->
         <div class="card-body p-2">
-          <small class="text-muted">Returned</small>
-          <h5 class="fw-bold text-success">{{ total_returned }}</h5>
+          <small class="text-white">Returned</small>
+          <h5 class="fw-bold text-white">{{ total_returned }}</h5>
         </div>
       </div>
     </div>
+
+    <!-- Dynamic Status Cards -->
     {% for status in status_counts %}
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center">
+      <div class="card shadow-sm border-0 text-center" style="background-color: #14532d;"> <!-- Use same dark green -->
         <div class="card-body p-2">
-          <small class="text-muted">{{ status.name }}</small>
-          <h6 class="fw-bold text-dark">{{ status.count }}</h6>
+          <small class="text-white">{{ status.name }}</small>
+          <h6 class="fw-bold text-white">{{ status.count }}</h6>
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
 
+
+
   <!-- Charts and Recent -->
   <div class="row mt-4 g-3">
     <!-- Recent -->
     <div class="col-md-4">
-      <div class="card shadow-sm border-0">
-        <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">🕒 Recent Equipments</small>
+      <div class="card shadow-sm border-0 rounded-4 bg-white">
+        <div class="card-header py-3" style="background-color: #14532d;"> <!-- Darker green -->
+          <h6 class="mb-0 text-white d-flex align-items-center gap-2">
+            <i class="bi bi-clock-history"></i> Recent Equipments
+          </h6>
         </div>
-        <div class="card-body p-2">
+        <div class="card-body p-3">
           {% if recent_equipments %}
-          <ul class="list-group list-group-flush small">
+          <ul class="list-group list-group-flush">
             {% for eq in recent_equipments %}
-            <li class="list-group-item d-flex justify-content-between align-items-start px-2 py-1">
-              <div>
-                <strong>{{ eq.item_name }}</strong><br>
-                <small class="text-muted">{{ eq.item_propertynum }} • {{ eq.item_purdate }}</small>
+            <li class="list-group-item d-flex justify-content-between align-items-start px-3 py-2 border-0 border-bottom">
+              <div class="me-2">
+                <div class="fw-semibold text-dark">{{ eq.item_name }}</div>
+                <div class="text-muted small">{{ eq.item_propertynum }} • {{ eq.item_purdate }}</div>
               </div>
-              <span class="badge bg-secondary">{{ eq.category.name }}</span>
+              <span class="badge rounded-pill px-3 py-1 small" style="background-color: #14532d; color: white;">
+                {{ eq.category.name }}
+              </span>
             </li>
             {% endfor %}
           </ul>
           {% else %}
-          <p class="text-muted small">No recent items.</p>
+          <div class="text-center text-muted small">No recent items found.</div>
           {% endif %}
         </div>
       </div>
     </div>
 
-    <!-- Category Bar Chart -->
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0 dashboard-chart-card">
-        <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">📂 By Category</small>
-        </div>
-        <div class="card-body p-2">
-          <canvas id="categoryChart"></canvas>
-        </div>
-      </div>
-    </div>
 
-    <!-- Status Pie Chart -->
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0 dashboard-chart-card">
-        <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">📊 By Status</small>
-        </div>
-        <div class="card-body p-2">
-          <canvas id="statusChart"></canvas>
-        </div>
+
+  <div class="col-md-4">
+    <div class="card shadow-sm border-0 rounded-4 bg-white">
+      <div class="card-header py-3" style="background-color: #14532d;">
+        <h6 class="mb-0 text-white d-flex align-items-center gap-2">
+          <i class="bi bi-folder2-open"></i> By Category
+        </h6>
+      </div>
+      <div class="card-body p-3">
+        <canvas id="categoryChart" height="200"></canvas>
       </div>
     </div>
   </div>
+
+    <!-- Status Pie Chart -->
+    <div class="col-md-4">
+      <div class="card shadow-sm border-0 rounded-4 bg-white">
+        <div class="card-header py-3" style="background-color: #14532d;">
+          <h6 class="mb-0 text-white d-flex align-items-center gap-2">
+            <i class="bi bi-pie-chart-fill"></i> By Status
+          </h6>
+        </div>
+        <div class="card-body p-3">
+          <canvas id="statusChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
 
   <!-- Monthly Line Chart -->
   <div class="row mt-4 g-3">
     <div class="col-md-12">
       <div class="card shadow-sm border-0 dashboard-chart-card">
         <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">📈 Equipments Added Per Month</small>
+          <small class="fw-semibold">📈 Equipments Acquired Per Year (PO Date)</small>
         </div>
         <div class="card-body p-2">
           <canvas id="monthlyChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipments by End User: Count and Total Cost -->
+  <div class="row mt-4 g-3">
+    <div class="col-md-12">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">👤 Equipments by End User: Count & Total Cost</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="endUserChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipments by Assigned To: Count and Total Cost -->
+  <div class="row mt-4 g-3">
+    <div class="col-md-12">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">👤 Equipments by Assigned To: Count & Total Cost</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="assignedToChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Equipments by Item Name: Total Number -->
+  <div class="row mt-4 g-3">
+    <div class="col-md-12">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header py-2 bg-light">
+          <small class="fw-semibold">🔢 Equipments by Name: Total Number</small>
+        </div>
+        <div class="card-body p-2">
+          <canvas id="itemNameChart"></canvas>
         </div>
       </div>
     </div>
@@ -190,6 +258,109 @@
         fill: false,
         borderColor: '#0e4a39',
         tension: 0.2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+      }
+    }
+  });
+
+  // Equipments by End User: Count and Total Cost (Grouped Bar)
+  const ctxEndUser = document.getElementById('endUserChart').getContext('2d');
+  new Chart(ctxEndUser, {
+    type: 'bar',
+    data: {
+      labels: {{ enduser_labels|safe }},
+      datasets: [
+        {
+          label: 'Number of Equipments',
+          data: {{ enduser_counts|safe }},
+          backgroundColor: '#0d6efd',
+          yAxisID: 'y',
+        },
+        {
+          label: 'Total Cost',
+          data: {{ enduser_amounts|safe }},
+          backgroundColor: '#ffc107',
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Count' },
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Total Cost (₱)' },
+        }
+      }
+    }
+  });
+
+  // Equipments by Assigned To: Count and Total Cost (Grouped Bar)
+  const ctxAssignedTo = document.getElementById('assignedToChart').getContext('2d');
+  new Chart(ctxAssignedTo, {
+    type: 'bar',
+    data: {
+      labels: {{ assigned_labels|safe }},
+      datasets: [
+        {
+          label: 'Number of Equipments',
+          data: {{ assigned_counts|safe }},
+          backgroundColor: '#20c997',
+          yAxisID: 'y',
+        },
+        {
+          label: 'Total Cost',
+          data: {{ assigned_amounts|safe }},
+          backgroundColor: '#fd7e14',
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: { display: true, text: 'Count' },
+        },
+        y1: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Total Cost (₱)' },
+        }
+      }
+    }
+  });
+
+  // Equipments by Item Name: Total Number (Bar)
+  const ctxItemName = document.getElementById('itemNameChart').getContext('2d');
+  new Chart(ctxItemName, {
+    type: 'bar',
+    data: {
+      labels: {{ itemname_labels|safe }},
+      datasets: [{
+        label: 'Total Number',
+        data: {{ itemname_counts|safe }},
+        backgroundColor: '#6610f2',
+        borderRadius: 5
       }]
     },
     options: {

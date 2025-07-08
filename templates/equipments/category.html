@@ -19,11 +19,11 @@
     </button>
   </div>
 
-  <div class="card shadow-sm border-0">
+  <div class="border-0">
     <div class="card-body p-2">
       <div class="table-responsive">
-        <table class="table table-sm table-hover table-bordered compact-table align-middle text-nowrap">
-          <thead class="table-light text-center">
+        <table class="table table-sm table-hover table-bordered align-middle text-center compact-table equal-width-table">
+          <thead class="table-light">
             <tr>
               <th>Name</th>
               <th style="width: 120px;">Actions</th>
@@ -134,5 +134,26 @@
     font-size: 0.85rem;
     vertical-align: middle;
   }
+
+  .equal-width-table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .equal-width-table th,
+  .equal-width-table td {
+    width: 50%; /* Two equal-width columns */
+    word-wrap: break-word;
+    white-space: normal;
+  }
+
+  /* Optional: limit table width on large screens */
+  @media (min-width: 768px) {
+    .table-responsive {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+  }
 </style>
+
 {% endblock %}
