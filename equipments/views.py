@@ -1076,90 +1076,94 @@ def clear_history_logs(request):
 @login_required
 @user_passes_test(is_admin_superadmin_encoder)
 def reports_page(request):
-    from .models import Equipment, Category
-    from django.db.models import Sum
-    categories = Category.objects.all()
-    suppliers = Equipment.objects.exclude(supplier__isnull=True).exclude(supplier='').values_list('supplier', flat=True).distinct()
+    # 1) Pull filter parameters (with sensible defaults)
+    date_from = request.GET.get('fromDate')
+    date_to   = request.GET.get('toDate')
+    period    = request.GET.get('period', 'monthly')  # monthly or yearly
+
+    # 2) Base queryset, then apply date filters if provided
+    eqs = Equipment.objects.exclude(item_purdate__isnull=True)
+    if date_from:
+        eqs = eqs.filter(item_purdate__gte=date_from)
+    if date_to:
+        eqs = eqs.filter(item_purdate__lte=date_to)
+
+    # 3) Summary values
+    from django.db.models import Value as V
+    total_asset = eqs.aggregate(total=Sum('item_amount'))['total'] or 0
+    categories  = Category.objects.all()
+    suppliers   = (
+        Equipment.objects
+        .exclude(supplier__isnull=True)
+        .exclude(supplier='')
+        .values_list('supplier', flat=True)
+        .distinct()
+    )
     selected_category = request.GET.get('category', '')
     selected_supplier = request.GET.get('supplier', '')
-    eqs = Equipment.objects.all()
+
     if selected_category:
         eqs = eqs.filter(category_id=selected_category)
     if selected_supplier:
         eqs = eqs.filter(supplier=selected_supplier)
-    total_asset = eqs.aggregate(total=Sum('item_amount'))['total'] or 0
 
-    # Asset value by category
+    # 4) Assets by Category & Count
     asset_by_category = (
         eqs.values('category__name')
-        .annotate(total=Sum('item_amount'))
-        .order_by('-total')
+           .annotate(total=Sum('item_amount'))
+           .order_by('-total')
     )
-
-    # Asset count by category
     asset_count_by_category = (
         eqs.values('category__name')
-        .annotate(count=Count('id'))
-        .order_by('-count')
+           .annotate(count=Count('id'))
+           .order_by('-count')
     )
 
-    # Top suppliers by asset value
-    top_suppliers = (
-        eqs.values('supplier')
-        .annotate(total=Sum('item_amount'))
-        .order_by('-total')[:10]
-    )
-
-    # Asset status breakdown
+    # 5) Status breakdown
     status_breakdown = (
         eqs.values('status__name')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('-count')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('-count')
     )
 
-    # Recently added assets (last 5)
+    # 6) Recent assets
     recent_assets = eqs.order_by('-created_at')[:5]
 
-    # Monthly purchases (current year)
-    from django.utils import timezone
-    from django.db.models.functions import TruncMonth, ExtractYear
+    # 7) Purchases overview (monthly or yearly)
     now = timezone.now()
     current_year = now.year
-    monthly_purchases = (
+
+    monthly_qs = (
         eqs.filter(item_purdate__year=current_year)
-        .annotate(month=TruncMonth('item_purdate'))
-        .values('month')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('month')
+           .annotate(period=TruncMonth('item_purdate'))
+           .values('period')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('period')
+    )
+    yearly_qs = (
+        eqs.annotate(period=ExtractYear('item_purdate'))
+           .values('period')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('period')
     )
 
-    # Yearly purchases
-    yearly_purchases = (
-        eqs.exclude(item_purdate=None)
-        .annotate(year=ExtractYear('item_purdate'))
-        .values('year')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('year')
-    )
-
-    # Assets by Location and Status
+    # 8) Assets by location & status
     assets_by_location_status = (
         eqs.values('location', 'status__name')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('location', 'status__name')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('location', 'status__name')
     )
-
-    # For filter dropdowns
     locations = Equipment.objects.values_list('location', flat=True).distinct().order_by('location')
-    statuses = Equipment.objects.values_list('status__name', flat=True).distinct().order_by('status__name')
-    selected_location = request.GET.get('location', '')
-    selected_status = request.GET.get('status', '')
-    if selected_location:
-        assets_by_location_status = assets_by_location_status.filter(location=selected_location)
-    if selected_status:
-        assets_by_location_status = assets_by_location_status.filter(status__name=selected_status)
+    statuses  = Equipment.objects.values_list('status__name', flat=True).distinct().order_by('status__name')
+    sel_loc   = request.GET.get('location', '')
+    sel_stat  = request.GET.get('status', '')
 
-    # CSV Export
+    if sel_loc:
+        assets_by_location_status = assets_by_location_status.filter(location=sel_loc)
+    if sel_stat:
+        assets_by_location_status = assets_by_location_status.filter(status__name=sel_stat)
+
+    # 9) CSV export for location/status
     if request.GET.get('export_location_status') == '1':
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="assets_by_location_status.csv"'
@@ -1170,28 +1174,40 @@ def reports_page(request):
                 row['location'] or '(None)',
                 row['status__name'] or '(None)',
                 row['count'],
-                f"{row['total']:.2f}" if row['total'] is not None else '0.00'
+                f"{row['total']:.2f}" if row['total'] is not None else "0.00"
             ])
         return response
 
+    # 10) Prepare context
     context = {
+        # filter form persistence
+        'date_from': date_from,
+        'date_to':   date_to,
+        'period':    period,
+
+        # dropdowns
         'categories': categories,
-        'suppliers': suppliers,
+        'suppliers':  suppliers,
         'selected_category': selected_category,
         'selected_supplier': selected_supplier,
+
+        # summaries
         'total_asset': total_asset,
-        'asset_by_category': asset_by_category,
+        'asset_by_category':       asset_by_category,
         'asset_count_by_category': asset_count_by_category,
-        'top_suppliers': top_suppliers,
-        'status_breakdown': status_breakdown,
-        'recent_assets': recent_assets,
-        'monthly_purchases': monthly_purchases,
-        'yearly_purchases': yearly_purchases,
+        'status_breakdown':        status_breakdown,
+        'recent_assets':           recent_assets,
+
+        # purchases overview
+        'monthly_purchases': monthly_qs,
+        'yearly_purchases':  yearly_qs,
+
+        # location/status grid
         'assets_by_location_status': assets_by_location_status,
         'locations': locations,
-        'statuses': statuses,
-        'selected_location': selected_location,
-        'selected_status': selected_status,
+        'statuses':  statuses,
+        'selected_location': sel_loc,
+        'selected_status':  sel_stat,
     }
     return render(request, 'reports/reports.html', context)
 
@@ -1329,7 +1345,3 @@ def generate_report(request):
         'filter_rows': filter_rows or None,  # ensure persistence of filter rows
     }
     return render(request, 'reports/generate_report.html', context)
-
-
-
-
