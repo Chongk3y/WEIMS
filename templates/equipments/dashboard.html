@@ -39,30 +39,33 @@
   <div class="row g-3">
     <!-- Total -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color: #14532d;"> <!-- Solid dark green -->
+      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(234, 133, 26);"> <!-- Solid dark green -->
         <div class="card-body p-2">
+          
+          <h2 class="fw-bold text-white">{{ total_equipments }}</h2>
           <small class="text-white">Total</small>
-          <h5 class="fw-bold text-white">{{ total_equipments }}</h5>
         </div>
       </div>
     </div>
 
     <!-- Archived -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color: #14532d;"> <!-- Solid dark green -->
+      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(227, 25, 25);"> <!-- Solid dark green -->
         <div class="card-body p-2">
+          
+          <h2 class="fw-bold text-white">{{ total_archived }}</h2>
           <small class="text-white">Archived</small>
-          <h5 class="fw-bold text-white">{{ total_archived }}</h5>
         </div>
       </div>
     </div>
 
     <!-- Returned -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color: #1a4d2e;"> <!-- Dark green variant -->
+      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(28, 233, 110);"> <!-- Dark green variant -->
         <div class="card-body p-2">
+          
+          <h2 class="fw-bold text-white">{{ total_returned }}</h2>
           <small class="text-white">Returned</small>
-          <h5 class="fw-bold text-white">{{ total_returned }}</h5>
         </div>
       </div>
     </div>
@@ -70,10 +73,11 @@
     <!-- Dynamic Status Cards -->
     {% for status in status_counts %}
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color: #14532d;"> <!-- Use same dark green -->
+      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(34, 63, 230);"> <!-- Use same dark green -->
         <div class="card-body p-2">
+          
+          <h2 class="fw-bold text-white">{{ status.count }}</h2>
           <small class="text-white">{{ status.name }}</small>
-          <h6 class="fw-bold text-white">{{ status.count }}</h6>
         </div>
       </div>
     </div>
@@ -101,7 +105,7 @@
                 <div class="fw-semibold text-dark">{{ eq.item_name }}</div>
                 <div class="text-muted small">{{ eq.item_propertynum }} • {{ eq.item_purdate }}</div>
               </div>
-              <span class="badge rounded-pill px-3 py-1 small" style="background-color: #14532d; color: white;">
+              <span class="badge rounded-pill px-3 py-1 small" style="background-color:rgb(62, 161, 197); color: white;">
                 {{ eq.category.name }}
               </span>
             </li>
