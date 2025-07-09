@@ -2,6 +2,7 @@
 import csv
 import json
 from datetime import datetime
+from functools import wraps
 # Django core imports
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
@@ -36,12 +37,30 @@ def is_encoder(user):
 
 def is_client(user):
     return user.groups.filter(name='Client').exists()
+    
+def is_superadmin(user):
+    return user.is_superuser
 
 def is_admin_or_superadmin(user):
     return user.is_superuser or user.groups.filter(name='Admin').exists()
 
 def is_admin_superadmin_encoder(user):
     return user.is_superuser or user.groups.filter(name__in=['Admin', 'Encoder']).exists()
+
+def encoder_readonly_or_denied(user):
+    # Encoders can only view, not delete/archive/restore or access restricted pages
+    return user.is_superuser or user.groups.filter(name='Admin').exists() or user.groups.filter(name='Encoder').exists()
+
+def role_required_with_feedback(test_func):
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if not test_func(request.user):
+                messages.error(request, "You do not have permission to access this page.")
+                return redirect('equipments:dashboard')
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
 
 
 
@@ -140,6 +159,7 @@ def equipment_table_json(request):
 
     data = []
     for eq in equipments:
+        # Only show Delete and Archive for admin/superadmin
         actions = f'''
         <div class="dropdown" data-bs-auto-close="outside">
         <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -151,6 +171,9 @@ def equipment_table_json(request):
                 <i class="bi bi-pencil-square"></i> Edit
             </a>
             </li>
+        '''
+        if is_admin(request.user) or is_superadmin(request.user):
+            actions += f'''
             <li>
             <a class="dropdown-item" href="/equipments/delete/{eq.id}/" onclick="return confirm('Are you sure?');">
                 <i class="bi bi-trash"></i> Delete
@@ -161,13 +184,16 @@ def equipment_table_json(request):
                 <i class="bi bi-archive"></i> Archive
             </a>
             </li>
-            {f'''
+            '''
+        if not eq.is_returned:
+            actions += f'''
             <li>
             <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
                 <i class="bi bi-arrow-90deg-left"></i> Return
             </button>
             </li>
-            ''' if not eq.is_returned else ''}
+            '''
+        actions += '''
         </ul>
         </div>
         '''
@@ -281,6 +307,7 @@ def index(request):
         'date_from': date_from,
         'date_to': date_to,
         'is_admin': is_admin(request.user),
+        'is_encoder': is_encoder(request.user),
     }
     return render(request, 'equipments/equipment_list.html', context)
 
@@ -299,6 +326,7 @@ def add_equipment(request):
         'statuses': statuses,
         'today_date': today_date,
         'is_admin': is_admin(request.user),
+        'is_encoder': is_encoder(request.user),
     })
 
 @login_required
@@ -621,7 +649,7 @@ def user(request):
     })
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def add_user(request):
     error = None
     if request.method == 'POST':
@@ -652,7 +680,7 @@ def add_user(request):
     return render(request, 'equipments/add_user.html', {'error': error})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def edit_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
@@ -671,7 +699,7 @@ def edit_user(request, user_id):
     return render(request, 'equipments/edit_user.html', {'user_obj': user})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def delete_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
@@ -680,6 +708,7 @@ def delete_user(request, user_id):
     return render(request, 'equipments/confirm_delete_user.html', {'user_obj': user})
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def category_list(request):
     is_admin = request.user.groups.filter(name="Admin").exists()
     if request.method == 'POST':
@@ -700,6 +729,7 @@ def category_list(request):
         'is_admin': is_admin,})
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def edit_category(request, id):
     category = get_object_or_404(Category, id=id)
     if request.method == 'POST':
@@ -713,7 +743,7 @@ def edit_category(request, id):
     return redirect('equipments:category')
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(is_admin_superadmin_encoder)
 def delete_category(request, id):
     category = get_object_or_404(Category, id=id)
     if request.method == 'POST':
@@ -722,6 +752,7 @@ def delete_category(request, id):
     return redirect('equipments:category')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def status_list(request):
     is_admin = request.user.groups.filter(name="Admin").exists()
     statuses = Status.objects.all()
@@ -730,6 +761,7 @@ def status_list(request):
         , 'is_admin': is_admin,})
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def add_status(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -744,6 +776,7 @@ def add_status(request):
     return redirect('equipments:status')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def edit_status(request, id):
     status = get_object_or_404(Status, id=id)
     if request.method == 'POST':
@@ -757,7 +790,7 @@ def edit_status(request, id):
     return redirect('equipments:status')
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(is_admin_superadmin_encoder)
 def delete_status(request, id):
     status = get_object_or_404(Status, id=id)
     if request.method == 'POST':
@@ -840,6 +873,7 @@ def parse_date(val):
 
 @require_POST
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def bulk_update_equipment(request):
     
     ids = request.POST.get('equipment_ids', '')
@@ -859,12 +893,13 @@ def bulk_update_equipment(request):
     return JsonResponse({'success': True})
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def returned(request):
     equipments = Equipment.objects.filter(is_returned=True)
     return render(request, 'equipments/returned.html', {'equipments': equipments})
 
-
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def returned_equipment_table_json(request):
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
@@ -923,6 +958,7 @@ def returned_equipment_table_json(request):
 
 @require_POST
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def return_equipment(request):
     eq_id = request.POST.get('equipment_id')
     file = request.FILES.get('return_document')
@@ -952,6 +988,7 @@ def archived_equipments(request):
     return render(request, 'equipments/archived_list.html')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def archive_equipment(request, pk):
     equipment = get_object_or_404(Equipment, pk=pk)
     equipment.is_archived = True
@@ -968,6 +1005,7 @@ def archive_equipment(request, pk):
     return redirect('equipments:index')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def archived_equipment_table_json(request):
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
@@ -1001,6 +1039,14 @@ def archived_equipment_table_json(request):
 
     data = []
     for eq in equipments:
+        # Only show the Recover (Unarchive) button if user is admin or superadmin
+        actions = ''
+        if is_admin(request.user) or is_superadmin(request.user):
+            actions = f'''
+            <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
+              <i class="bi bi-arrow-counterclockwise"></i> Recover
+            </a>
+            '''
         data.append([
             '',  # checkbox placeholder
             eq.id,
@@ -1015,11 +1061,7 @@ def archived_equipment_table_json(request):
             f'{eq.status.name} {"<span class=\'badge bg-secondary ms-1\'>Deleted</span>" if eq.is_archived else ""}',
             eq.date_archived.strftime('%Y-%m-%d %H:%M') if eq.date_archived else 'None',
             f'{eq.archived_by.get_full_name() if eq.archived_by else "None"}',
-            f'''
-            <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
-              <i class="bi bi-arrow-counterclockwise"></i> Recover
-            </a>
-            '''
+            actions
         ])
 
     return JsonResponse({
@@ -1030,6 +1072,7 @@ def archived_equipment_table_json(request):
     })
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def unarchive_equipment(request, pk):
     eq = get_object_or_404(Equipment, pk=pk)
     eq.is_archived = False
@@ -1043,6 +1086,7 @@ def unarchive_equipment(request, pk):
     return redirect('equipments:archived_equipments')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def equipment_history_json(request, equipment_id):
     history = EquipmentHistory.objects.filter(equipment_id=equipment_id).order_by('-changed_at')
     data = [
@@ -1065,7 +1109,7 @@ def history_logs(request):
     return render(request, 'equipments/history_logs.html', {'logs': logs})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def clear_history_logs(request):
     if request.method == 'POST':
         EquipmentActionLog.objects.all().delete()
@@ -1074,7 +1118,7 @@ def clear_history_logs(request):
     return redirect('equipments:history_logs')
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def reports_page(request):
     # 1) Pull filter parameters (with sensible defaults)
     date_from = request.GET.get('fromDate')
@@ -1212,6 +1256,7 @@ def reports_page(request):
     return render(request, 'reports/reports.html', context)
 
 @login_required
+@user_passes_test(is_admin_or_superadmin)
 def generate_report(request):
     from .models import Equipment
     form = ReportFilterForm(request.GET or None)
