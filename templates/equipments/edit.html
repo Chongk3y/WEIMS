@@ -43,7 +43,7 @@
           <div class="col-12 small fw-bold text-secondary border-bottom pt-2 pb-1">Purchase Information</div>
           <div class="col-md-6">
             <label class="form-label small">Purchase Date</label>
-            <input type="date" name="item_purdate" class="form-control form-control-sm" value="{{ form.item_purdate.value|default_if_none:'' }}">
+            <input type="date" name="item_purdate" class="form-control form-control-sm" value="{{ equipment.item_purdate|date:'Y-m-d' }}">
           </div>
           <div class="col-md-6">
             <label class="form-label small">PO Number</label>

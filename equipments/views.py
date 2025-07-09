@@ -172,6 +172,7 @@ def equipment_table_json(request):
             </a>
             </li>
         '''
+        # Show Delete for admin/superadmin only, but Archive for admin/superadmin/encoder
         if is_admin(request.user) or is_superadmin(request.user):
             actions += f'''
             <li>
@@ -179,6 +180,9 @@ def equipment_table_json(request):
                 <i class="bi bi-trash"></i> Delete
             </a>
             </li>
+            '''
+        if is_admin(request.user) or is_superadmin(request.user) or is_encoder(request.user):
+            actions += f'''
             <li>
             <a class="dropdown-item" href="/equipments/archive/{eq.id}/" onclick="return confirm('Archive this equipment?');">
                 <i class="bi bi-archive"></i> Archive
@@ -262,6 +266,7 @@ def equipment_detail_json(request, pk):
 @login_required
 @user_passes_test(is_admin_superadmin_encoder)
 def index(request):
+    
     equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
     categories = Category.objects.all()
     statuses = Status.objects.all()
@@ -309,6 +314,7 @@ def index(request):
         'is_admin': is_admin(request.user),
         'is_encoder': is_encoder(request.user),
     }
+    
     return render(request, 'equipments/equipment_list.html', context)
 
 
@@ -354,6 +360,13 @@ def processaddequipment(request):
         # Field validations (keep as is)
         # ...existing validation code...
 
+        # Validate item_amount is a valid number
+        try:
+            if item_amount is not None and item_amount != '':
+                float(item_amount)
+        except ValueError:
+            errors['item_amount'] = 'Amount must be a valid number.'
+
         if errors:
             users = User.objects.all()
             categories = Category.objects.all()
@@ -368,6 +381,7 @@ def processaddequipment(request):
                 'statuses': statuses,
                 'today_date': today_date,
                 'is_admin': is_admin(request.user),
+                'is_encoder': is_encoder(request.user),
             })
         else:
             equipment = Equipment.objects.create(
