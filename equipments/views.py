@@ -1212,63 +1212,90 @@ def generate_report(request):
     for col, op, val in zip(filter_columns, filter_operators, filter_values):
         filter_rows.append({'column': col, 'operator': op, 'value': val})
     advanced_filters = Q()
+
+    # Field type and lookup map
     field_type_map = {
-        'id': int,
-        'item_amount': float,
-        'created_at': 'date',
-        'updated_at': 'date',
+        'id': 'int',
+        'item_amount': 'float',
+        'created_at': 'datetime',
+        'updated_at': 'datetime',
         'item_purdate': 'date',
+        'date_archived': 'datetime',
         'category': 'fk',
         'status': 'fk',
         'is_returned': 'bool',
         'is_archived': 'bool',
     }
+    # ForeignKey fields: use exact
+    fk_fields = {'category', 'status'}
+    # Date/Datetime fields
+    date_fields = {'item_purdate', 'created_at', 'updated_at', 'date_archived'}
+    # Boolean fields
+    bool_fields = {'is_returned', 'is_archived'}
+    # Char/Text fields (for icontains)
+    char_fields = {
+        'item_name', 'item_propertynum', 'item_desc', 'additional_info', 'po_number', 'fund_source', 'supplier',
+        'project_name', 'assigned_to', 'end_user', 'location', 'current_location', 'return_remarks', 'return_condition',
+        'return_type', 'returned_by', 'received_by',
+    }
+    # User fields (FK): created_by, updated_by, emp, archived_by
+    user_fk_fields = {'created_by', 'updated_by', 'emp', 'archived_by'}
+
     for col, op, val in zip(filter_columns, filter_operators, filter_values):
         if not col:
             continue
-        field_type = field_type_map.get(col, str)
+        if op in ['isnull', 'notnull']:
+            advanced_filters &= Q(**{f"{col}__isnull": op == 'isnull'})
+            continue
+        if not val and op not in ['isnull', 'notnull']:
+            continue
+        # Determine lookup and value conversion
+        lookup = op
+        filter_key = col
         val_conv = val
-        try:
-            if op in ['isnull', 'notnull']:
-                advanced_filters &= Q(**{f"{col}__isnull": op == 'isnull'})
-                continue
-            if field_type == int:
+        # ForeignKey fields: always use exact
+        if col in fk_fields:
+            lookup = 'exact'
+            filter_key = f"{col}__id"
+            try:
                 val_conv = int(val)
-            elif field_type == float:
-                val_conv = float(val)
-            elif field_type == 'date':
+            except Exception:
+                continue
+        # User FK fields: use exact on id
+        elif col in user_fk_fields:
+            lookup = 'exact'
+            filter_key = f"{col}__id"
+            try:
+                val_conv = int(val)
+            except Exception:
+                continue
+        # Date/Datetime fields
+        elif col in date_fields:
+            if op in ['exact', 'gt', 'lt', 'gte', 'lte']:
+                filter_key = col + ('__date' if field_type_map.get(col) == 'datetime' else '')
                 try:
                     val_conv = dt.strptime(val, '%Y-%m-%d').date()
                 except Exception:
-                    val_conv = val
-            elif field_type == 'bool':
-                val_conv = val.lower() in ['1', 'true', 'yes']
-            elif field_type == 'fk':
-                if col == 'category':
-                    from .models import Category
-                    try:
-                        val_conv = int(val)
-                        val_conv = Category.objects.get(pk=val_conv)
-                    except Exception:
-                        val_conv = Category.objects.filter(name__iexact=val).first()
-                    if val_conv:
-                        val_conv = val_conv.pk
-                elif col == 'status':
-                    from .models import Status
-                    try:
-                        val_conv = int(val)
-                        val_conv = Status.objects.get(pk=val_conv)
-                    except Exception:
-                        val_conv = Status.objects.filter(name__iexact=val).first()
-                    if val_conv:
-                        val_conv = val_conv.pk
-        except Exception:
-            val_conv = val
-        if op == 'isnull' or op == 'notnull':
-            continue
-        elif op in ['exact', 'iexact', 'icontains', 'gt', 'lt', 'gte', 'lte'] and val:
-            lookup = f"{col}__{op if op != 'exact' else 'iexact'}"
-            advanced_filters &= Q(**{lookup: val_conv})
+                    continue
+            else:
+                continue  # skip unsupported ops
+        # Boolean fields
+        elif col in bool_fields:
+            lookup = 'exact'
+            filter_key = col
+            val_conv = val.lower() in ['1', 'true', 'yes', 'on']
+        # Char/Text fields
+        elif col in char_fields:
+            if op not in ['exact', 'icontains']:
+                lookup = 'icontains'
+            filter_key = col + (f'__{lookup}' if lookup != 'exact' else '')
+        else:
+            # Fallback: use icontains for unknown fields
+            lookup = 'icontains'
+            filter_key = col + (f'__{lookup}' if lookup != 'exact' else '')
+        # Compose filter
+        if lookup in ['exact', 'iexact', 'icontains', 'gt', 'lt', 'gte', 'lte']:
+            advanced_filters &= Q(**{filter_key: val_conv})
     if filter_columns:
         equipments = equipments.filter(advanced_filters)
 
@@ -1321,12 +1348,21 @@ def generate_report(request):
                     row.append(getattr(eq, col, ''))
             writer.writerow(row)
         return response
+    # Get all categories for filter dropdown
+    categories = Category.objects.all().order_by('name')
+    statuses = Status.objects.all().order_by('name')
+    end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user='').values_list('end_user', flat=True).distinct()
+    assigned_to_list = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).distinct()
     context = {
         'form': form,
         'equipments': equipments,
         'selected_columns': selected_columns,
         'column_labels': column_labels,
         'filter_rows': filter_rows or None,  # ensure persistence of filter rows
+        'categories': categories,  # pass to template
+        'statuses': statuses,
+        'end_users': end_users,
+        'assigned_to_list': assigned_to_list,
     }
     return render(request, 'reports/generate_report.html', context)
 
