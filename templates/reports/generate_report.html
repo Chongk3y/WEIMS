@@ -104,7 +104,32 @@
                 </div>
                 <div class="col-12 col-md-4">
                   <label class="form-label form-label-sm mb-1">Value</label>
-                  <input type="text" name="filter_value[]" class="form-control form-control-sm" value="{{ row.value|default:'' }}" />
+                  <input type="text" name="filter_value[]" class="form-control form-control-sm filter-value-input" value="{{ row.value|default:'' }}" {% if row.column in 'category status end_user assigned_to item_purdate created_at updated_at' %}style="display:none;"{% endif %} />
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-category" {% if row.column != 'category' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for cat in categories %}
+                      <option value="{{ cat.pk }}" {% if row.value|stringformat:'s' == cat.pk|stringformat:'s' %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-status" {% if row.column != 'status' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for stat in statuses %}
+                      <option value="{{ stat.pk }}" {% if row.value|stringformat:'s' == stat.pk|stringformat:'s' %}selected{% endif %}>{{ stat.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-enduser" {% if row.column != 'end_user' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for eu in end_users %}
+                      <option value="{{ eu }}" {% if row.value|stringformat:'s' == eu|stringformat:'s' %}selected{% endif %}>{{ eu }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-assignedto" {% if row.column != 'assigned_to' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for at in assigned_to_list %}
+                      <option value="{{ at }}" {% if row.value|stringformat:'s' == at|stringformat:'s' %}selected{% endif %}>{{ at }}</option>
+                    {% endfor %}
+                  </select>
+                  <input type="date" name="filter_value[]" class="form-control form-control-sm filter-value-date" value="{{ row.value|default:'' }}" {% if row.column not in 'item_purdate created_at updated_at date_archived' %}style="display:none;"{% endif %} />
                 </div>
                 <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
                   <button type="button" class="btn btn-outline-danger btn-sm remove-filter-row" title="Remove filter row"><i class="bi bi-dash-circle"></i></button>
@@ -140,7 +165,32 @@
               </div>
               <div class="col-12 col-md-4">
                 <label class="form-label form-label-sm mb-1">Value</label>
-                <input type="text" name="filter_value[]" class="form-control form-control-sm" />
+                <input type="text" name="filter_value[]" class="form-control form-control-sm filter-value-input" />
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-category" style="display:none;">
+                  <option value="">---------</option>
+                  {% for cat in categories %}
+                    <option value="{{ cat.pk }}">{{ cat.name }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-status" style="display:none;">
+                  <option value="">---------</option>
+                  {% for stat in statuses %}
+                    <option value="{{ stat.pk }}">{{ stat.name }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-enduser" style="display:none;">
+                  <option value="">---------</option>
+                  {% for eu in end_users %}
+                    <option value="{{ eu }}">{{ eu }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-assignedto" style="display:none;">
+                  <option value="">---------</option>
+                  {% for at in assigned_to_list %}
+                    <option value="{{ at }}">{{ at }}</option>
+                  {% endfor %}
+                </select>
+                <input type="date" name="filter_value[]" class="form-control form-control-sm filter-value-date" style="display:none;" />
               </div>
               <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
                 <button type="button" class="btn btn-outline-danger btn-sm remove-filter-row" title="Remove filter row"><i class="bi bi-dash-circle"></i></button>
@@ -163,7 +213,7 @@
             </div>
             <div class="col-12 col-md-2">
               <label class="form-label form-label-sm mb-1">Operator</label>
-              <select class="form-select form-select-sm">
+              <select name="filter_operator[]" class="form-select form-select-sm">
                 <option value="exact">Equals</option>
                 <option value="icontains">Contains</option>
                 <option value="gt">&gt;</option>
@@ -176,7 +226,32 @@
             </div>
             <div class="col-12 col-md-4">
               <label class="form-label form-label-sm mb-1">Value</label>
-              <input type="text" class="form-control form-control-sm" />
+              <input type="text" class="form-control form-control-sm filter-value-input" />
+              <select class="form-select form-select-sm filter-value-select-category" style="display:none;">
+                <option value="">---------</option>
+                {% for cat in categories %}
+                  <option value="{{ cat.pk }}">{{ cat.name }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-status" style="display:none;">
+                <option value="">---------</option>
+                {% for stat in statuses %}
+                  <option value="{{ stat.pk }}">{{ stat.name }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-enduser" style="display:none;">
+                <option value="">---------</option>
+                {% for eu in end_users %}
+                  <option value="{{ eu }}">{{ eu }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-assignedto" style="display:none;">
+                <option value="">---------</option>
+                {% for at in assigned_to_list %}
+                  <option value="{{ at }}">{{ at }}</option>
+                {% endfor %}
+              </select>
+              <input type="date" class="form-control form-control-sm filter-value-date" style="display:none;" />
             </div>
             <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
               <button type="button" class="btn btn-outline-danger btn-sm remove-filter-row" title="Remove filter row"><i class="bi bi-dash-circle"></i></button>
@@ -201,34 +276,90 @@
         document.addEventListener('DOMContentLoaded', function() {
           const filterRows = document.getElementById('advanced-filter-rows');
           const addBtn = document.getElementById('add-filter-row');
+
+          function updateValueField(row) {
+            const colSelect = row.querySelector('.filter-column-select');
+            const valueInput = row.querySelector('.filter-value-input');
+            const valueSelectCategory = row.querySelector('.filter-value-select-category');
+            const valueSelectStatus = row.querySelector('.filter-value-select-status');
+            const valueSelectEndUser = row.querySelector('.filter-value-select-enduser');
+            const valueSelectAssignedTo = row.querySelector('.filter-value-select-assignedto');
+            const valueDate = row.querySelector('.filter-value-date');
+            if (!colSelect) return;
+            // Hide all value fields
+            if (valueInput) { valueInput.style.display = 'none'; valueInput.name = ''; }
+            if (valueSelectCategory) { valueSelectCategory.style.display = 'none'; valueSelectCategory.name = ''; }
+            if (valueSelectStatus) { valueSelectStatus.style.display = 'none'; valueSelectStatus.name = ''; }
+            if (valueSelectEndUser) { valueSelectEndUser.style.display = 'none'; valueSelectEndUser.name = ''; }
+            if (valueSelectAssignedTo) { valueSelectAssignedTo.style.display = 'none'; valueSelectAssignedTo.name = ''; }
+            if (valueDate) { valueDate.style.display = 'none'; valueDate.name = ''; }
+            // Show the correct value field
+            if (colSelect.value === 'category') {
+              if (valueSelectCategory) { valueSelectCategory.style.display = ''; valueSelectCategory.name = 'filter_value[]'; }
+            } else if (colSelect.value === 'status') {
+              if (valueSelectStatus) { valueSelectStatus.style.display = ''; valueSelectStatus.name = 'filter_value[]'; }
+            } else if (colSelect.value === 'end_user') {
+              if (valueSelectEndUser) { valueSelectEndUser.style.display = ''; valueSelectEndUser.name = 'filter_value[]'; }
+            } else if (colSelect.value === 'assigned_to') {
+              if (valueSelectAssignedTo) { valueSelectAssignedTo.style.display = ''; valueSelectAssignedTo.name = 'filter_value[]'; }
+            } else if (['item_purdate', 'created_at', 'updated_at', 'date_archived'].includes(colSelect.value)) {
+              if (valueDate) { valueDate.style.display = ''; valueDate.name = 'filter_value[]'; }
+            } else {
+              if (valueInput) { valueInput.style.display = ''; valueInput.name = 'filter_value[]'; }
+            }
+          }
+
           function addRow() {
             const template = filterRows.querySelector('.advanced-filter-row.template');
             const newRow = template.cloneNode(true);
             newRow.classList.remove('template');
             newRow.style.display = '';
             // Add name attributes to inputs/selects
-            newRow.querySelectorAll('select').forEach((el, idx) => {
+            newRow.querySelectorAll('select').forEach((el) => {
               if (el.classList.contains('filter-column-select')) {
                 el.name = 'filter_column[]';
+              } else if (el.classList.contains('filter-value-select-category') || el.classList.contains('filter-value-select-status') || el.classList.contains('filter-value-select-enduser') || el.classList.contains('filter-value-select-assignedto')) {
+                el.name = '';
               } else {
                 el.name = 'filter_operator[]';
               }
             });
-            newRow.querySelector('input').name = 'filter_value[]';
+            if (newRow.querySelector('.filter-value-input')) newRow.querySelector('.filter-value-input').name = 'filter_value[]';
+            if (newRow.querySelector('.filter-value-date')) newRow.querySelector('.filter-value-date').name = '';
+            // Set up value field
+            updateValueField(newRow);
+            // Listen for column change
+            newRow.querySelector('.filter-column-select').addEventListener('change', function() {
+              updateValueField(newRow);
+            });
             filterRows.appendChild(newRow);
             updateRemoveButtons();
           }
+
           function removeRow(e) {
             if (filterRows.querySelectorAll('.advanced-filter-row:not(.template)').length > 1) {
               e.target.closest('.advanced-filter-row').remove();
             }
             updateRemoveButtons();
           }
+
           function updateRemoveButtons() {
             filterRows.querySelectorAll('.remove-filter-row').forEach(btn => {
               btn.disabled = filterRows.querySelectorAll('.advanced-filter-row:not(.template)').length === 1;
             });
           }
+
+          // Attach change event and update value field for all existing rows (not just template)
+          filterRows.querySelectorAll('.advanced-filter-row:not(.template)').forEach(row => {
+            const colSelect = row.querySelector('.filter-column-select');
+            if (colSelect) {
+              colSelect.addEventListener('change', function() {
+                updateValueField(row);
+              });
+              updateValueField(row);
+            }
+          });
+
           addBtn.addEventListener('click', addRow);
           filterRows.addEventListener('click', function(e) {
             if (e.target.classList.contains('remove-filter-row')) {

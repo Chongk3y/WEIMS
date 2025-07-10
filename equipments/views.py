@@ -2,6 +2,7 @@
 import csv
 import json
 from datetime import datetime
+from functools import wraps
 # Django core imports
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, HttpResponseRedirect, JsonResponse, Http404
@@ -25,28 +26,29 @@ from .models import EquipmentHistory
 from .models import EquipmentActionLog
 from .models import ReportTemplate
 from .forms import ReportFilterForm
+from .helpers import (
+    is_admin,
+    is_encoder,
+    is_client,
+    is_superadmin,
+    is_admin_or_superadmin,
+    is_admin_superadmin_encoder,
+    encoder_readonly_or_denied,
+    is_viewer_or_above,
+    role_required_with_feedback
+)
 
-
-
-def is_admin(user):
-    return user.groups.filter(name='Admin').exists()
-
-def is_encoder(user):
-    return user.groups.filter(name='Encoder').exists()
-
-def is_client(user):
-    return user.groups.filter(name='Client').exists()
-
-def is_admin_or_superadmin(user):
-    return user.is_superuser or user.groups.filter(name='Admin').exists()
-
-def is_admin_superadmin_encoder(user):
-    return user.is_superuser or user.groups.filter(name__in=['Admin', 'Encoder']).exists()
-
+def is_viewer_or_above(user):
+    return (
+        user.is_superuser or 
+        user.groups.filter(name__in=['admin', 'encoder', 'client']).exists()
+    )
 
 
 @login_required
 def equipment_table_json(request):
+    is_client_user = request.user.groups.filter(name='client').exists()
+
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
     length = int(request.GET.get('length', 10))
@@ -140,59 +142,85 @@ def equipment_table_json(request):
 
     data = []
     for eq in equipments:
-        actions = f'''
-        <div class="dropdown" data-bs-auto-close="outside">
-        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Actions
-        </button>
-        <ul class="dropdown-menu">
-            <li>
-            <a class="dropdown-item" href="/equipments/edit/{eq.id}/">
-                <i class="bi bi-pencil-square"></i> Edit
-            </a>
-            </li>
-            <li>
-            <a class="dropdown-item" href="/equipments/delete/{eq.id}/" onclick="return confirm('Are you sure?');">
-                <i class="bi bi-trash"></i> Delete
-            </a>
-            </li>
-            <li>
-            <a class="dropdown-item" href="/equipments/archive/{eq.id}/" onclick="return confirm('Archive this equipment?');">
-                <i class="bi bi-archive"></i> Archive
-            </a>
-            </li>
-            {f'''
-            <li>
-            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
-                <i class="bi bi-arrow-90deg-left"></i> Return
+        
+        # Only show Delete and Archive for admin/superadmin
+        actions = ''
+        if not is_client(request.user):  # ✅ hide entire dropdown for clients
+            actions = f'''
+            <div class="dropdown" data-bs-auto-close="outside">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Actions
             </button>
-            </li>
-            ''' if not eq.is_returned else ''}
-        </ul>
-        </div>
-        '''
-
-        data.append([
+            <ul class="dropdown-menu">
+                <li>
+                <a class="dropdown-item" href="/equipments/edit/{eq.id}/">
+                    <i class="bi bi-pencil-square"></i> Edit
+                </a>
+                </li>
+            '''
+            if is_admin(request.user) or is_superadmin(request.user):
+                actions += f'''
+                <li>
+                <a class="dropdown-item" href="/equipments/delete/{eq.id}/" onclick="return confirm('Are you sure?');">
+                    <i class="bi bi-trash"></i> Delete
+                </a>
+                </li>
+                '''
+            if is_admin(request.user) or is_superadmin(request.user) or is_encoder(request.user):
+                actions += f'''
+                <li>
+                <a class="dropdown-item" href="/equipments/archive/{eq.id}/" onclick="return confirm('Archive this equipment?');">
+                    <i class="bi bi-archive"></i> Archive
+                </a>
+                </li>
+                '''
+            if not eq.is_returned:
+                actions += f'''
+                <li>
+                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
+                    <i class="bi bi-arrow-90deg-left"></i> Return
+                </button>
+                </li>
+                '''
+            actions += '''
+            </ul>
+            </div>
+            '''
+        status_colors = {
+            'Active': 'success',
+            'Damaged': 'danger',
+            'Maintenance': 'warning',
+            'Lost': 'secondary',
+            'Condemned': 'dark',
+        }
+        row = [
             '',  # 0: Checkbox placeholder
-            eq.id,  # 1: hidden ID
+            eq.id,
             f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',  # 2: Image
-            eq.item_propertynum,  # 3: Property #
-            eq.item_name,         # 4: Name
-            eq.item_desc if eq.item_desc else 'None',  # 5: Description
-            eq.po_number if eq.po_number else 'None',  # 6: PO Number
-            f'₱{eq.item_amount:,.2f}',                 # 7: Amount
-            eq.end_user if eq.end_user else 'None',    # 8: End User
-            eq.category.name,                          # 9: Category
-            eq.status.name,                            # 10: Status
-            actions,                                   # 11: Actions
-            eq.fund_source if eq.fund_source else 'None',         # 12: Fund Source
-            eq.supplier if eq.supplier else 'None',               # 13: Supplier
-            eq.assigned_to if eq.assigned_to else 'None',         # 14: Assigned To
-            eq.location if eq.location else 'None',               # 15: Deployment Location
-            eq.current_location if eq.current_location else 'None',# 16: Current Location
-            eq.item_purdate.strftime('%Y-%m-%d') if eq.item_purdate else 'None', # 17: PO Date
-            eq.project_name if eq.project_name else 'None',       # 18: Project Name
+            eq.item_propertynum,
+            eq.item_name,
+            eq.item_desc if eq.item_desc else 'None',
+            eq.po_number if eq.po_number else 'None',
+            f'₱{eq.item_amount:,.2f}',
+            eq.end_user if eq.end_user else 'None',
+            eq.category.name,
+            f'<span class="badge bg-{status_colors.get(eq.status.name, "secondary")}">{eq.status.name}</span>',
+        ]
+
+        row.append(actions if not is_client_user else '')  # ✅ Only push Actions column for non-client
+
+        # Continue pushing the rest
+        row.extend([
+            eq.fund_source if eq.fund_source else 'None',
+            eq.supplier if eq.supplier else 'None',
+            eq.assigned_to if eq.assigned_to else 'None',
+            eq.location if eq.location else 'None',
+            eq.current_location if eq.current_location else 'None',
+            eq.item_purdate.strftime('%Y-%m-%d') if eq.item_purdate else 'None',
+            eq.project_name if eq.project_name else 'None',
         ])
+
+        data.append(row)
 
     return JsonResponse({
         'draw': draw,
@@ -234,8 +262,9 @@ def equipment_detail_json(request, pk):
     return JsonResponse(data)
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def index(request):
+    
     equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
     categories = Category.objects.all()
     statuses = Status.objects.all()
@@ -281,7 +310,10 @@ def index(request):
         'date_from': date_from,
         'date_to': date_to,
         'is_admin': is_admin(request.user),
+        'is_encoder': is_encoder(request.user),
+        'is_client': is_client(request.user),
     }
+    
     return render(request, 'equipments/equipment_list.html', context)
 
 
@@ -299,6 +331,7 @@ def add_equipment(request):
         'statuses': statuses,
         'today_date': today_date,
         'is_admin': is_admin(request.user),
+        'is_encoder': is_encoder(request.user),
     })
 
 @login_required
@@ -326,6 +359,13 @@ def processaddequipment(request):
         # Field validations (keep as is)
         # ...existing validation code...
 
+        # Validate item_amount is a valid number
+        try:
+            if item_amount is not None and item_amount != '':
+                float(item_amount)
+        except ValueError:
+            errors['item_amount'] = 'Amount must be a valid number.'
+
         if errors:
             users = User.objects.all()
             categories = Category.objects.all()
@@ -340,6 +380,7 @@ def processaddequipment(request):
                 'statuses': statuses,
                 'today_date': today_date,
                 'is_admin': is_admin(request.user),
+                'is_encoder': is_encoder(request.user),
             })
         else:
             equipment = Equipment.objects.create(
@@ -603,6 +644,9 @@ def dashboard(request):
         'assigned_amounts': json.dumps(assigned_amounts),
         'itemname_labels': json.dumps(itemname_labels),
         'itemname_counts': json.dumps(itemname_counts),
+        'is_admin': is_admin(request.user),
+        'is_encoder': is_encoder(request.user),
+        'is_superadmin': is_superadmin(request.user),
     }
     return render(request, 'equipments/dashboard.html', context)
 
@@ -610,9 +654,9 @@ def dashboard(request):
 @user_passes_test(is_admin_or_superadmin)
 def user(request):
     users = User.objects.all().order_by('-date_joined')  # <-- Add this line
-    is_admin = request.user.groups.filter(name="Admin").exists()
+    is_admin = request.user.groups.filter(name="admin").exists()
     is_superadmin = request.user.groups.filter(name="Superadmin").exists()
-    is_encoder = request.user.groups.filter(name="Encoder").exists()
+    is_encoder = request.user.groups.filter(name="encoder").exists()
     return render(request, 'equipments/user.html', {
         'users': users,
         'is_admin': is_admin,
@@ -621,7 +665,7 @@ def user(request):
     })
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def add_user(request):
     error = None
     if request.method == 'POST':
@@ -652,7 +696,7 @@ def add_user(request):
     return render(request, 'equipments/add_user.html', {'error': error})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def edit_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
@@ -671,7 +715,7 @@ def edit_user(request, user_id):
     return render(request, 'equipments/edit_user.html', {'user_obj': user})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def delete_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
     if request.method == 'POST':
@@ -680,8 +724,9 @@ def delete_user(request, user_id):
     return render(request, 'equipments/confirm_delete_user.html', {'user_obj': user})
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def category_list(request):
-    is_admin = request.user.groups.filter(name="Admin").exists()
+    is_admin = request.user.groups.filter(name="admin").exists()
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if name:
@@ -700,6 +745,7 @@ def category_list(request):
         'is_admin': is_admin,})
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def edit_category(request, id):
     category = get_object_or_404(Category, id=id)
     if request.method == 'POST':
@@ -713,7 +759,7 @@ def edit_category(request, id):
     return redirect('equipments:category')
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(is_admin_superadmin_encoder)
 def delete_category(request, id):
     category = get_object_or_404(Category, id=id)
     if request.method == 'POST':
@@ -722,14 +768,16 @@ def delete_category(request, id):
     return redirect('equipments:category')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def status_list(request):
-    is_admin = request.user.groups.filter(name="Admin").exists()
+    is_admin = request.user.groups.filter(name="admin").exists()
     statuses = Status.objects.all()
     return render(request, 'equipments/status.html', {
         'statuses': statuses
         , 'is_admin': is_admin,})
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def add_status(request):
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
@@ -744,6 +792,7 @@ def add_status(request):
     return redirect('equipments:status')
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def edit_status(request, id):
     status = get_object_or_404(Status, id=id)
     if request.method == 'POST':
@@ -757,7 +806,7 @@ def edit_status(request, id):
     return redirect('equipments:status')
 
 @login_required
-@user_passes_test(is_admin)
+@user_passes_test(is_admin_superadmin_encoder)
 def delete_status(request, id):
     status = get_object_or_404(Status, id=id)
     if request.method == 'POST':
@@ -840,6 +889,7 @@ def parse_date(val):
 
 @require_POST
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def bulk_update_equipment(request):
     
     ids = request.POST.get('equipment_ids', '')
@@ -859,12 +909,13 @@ def bulk_update_equipment(request):
     return JsonResponse({'success': True})
 
 @login_required
+@role_required_with_feedback(is_viewer_or_above)
 def returned(request):
     equipments = Equipment.objects.filter(is_returned=True)
     return render(request, 'equipments/returned.html', {'equipments': equipments})
 
-
 @login_required
+@role_required_with_feedback(is_viewer_or_above)
 def returned_equipment_table_json(request):
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
@@ -899,7 +950,6 @@ def returned_equipment_table_json(request):
     data = []
     for eq in equipments:
         data.append([
-            '',  # checkbox placeholder
             eq.id,
             f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
             eq.item_propertynum,
@@ -923,6 +973,7 @@ def returned_equipment_table_json(request):
 
 @require_POST
 @login_required
+@role_required_with_feedback(is_viewer_or_above)
 def return_equipment(request):
     eq_id = request.POST.get('equipment_id')
     file = request.FILES.get('return_document')
@@ -947,11 +998,12 @@ def return_equipment(request):
     return redirect('equipments:index')
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def archived_equipments(request):
     return render(request, 'equipments/archived_list.html')
 
 @login_required
+@role_required_with_feedback(is_viewer_or_above)
 def archive_equipment(request, pk):
     equipment = get_object_or_404(Equipment, pk=pk)
     equipment.is_archived = True
@@ -968,6 +1020,7 @@ def archive_equipment(request, pk):
     return redirect('equipments:index')
 
 @login_required
+@role_required_with_feedback(is_viewer_or_above)
 def archived_equipment_table_json(request):
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
@@ -1001,8 +1054,15 @@ def archived_equipment_table_json(request):
 
     data = []
     for eq in equipments:
+        # Only show the Recover (Unarchive) button if user is admin or superadmin
+        actions = ''
+        if is_admin(request.user) or is_superadmin(request.user):
+            actions = f'''
+            <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
+              <i class="bi bi-arrow-counterclockwise"></i> Recover
+            </a>
+            '''
         data.append([
-            '',  # checkbox placeholder
             eq.id,
             f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
             eq.item_propertynum,
@@ -1015,11 +1075,7 @@ def archived_equipment_table_json(request):
             f'{eq.status.name} {"<span class=\'badge bg-secondary ms-1\'>Deleted</span>" if eq.is_archived else ""}',
             eq.date_archived.strftime('%Y-%m-%d %H:%M') if eq.date_archived else 'None',
             f'{eq.archived_by.get_full_name() if eq.archived_by else "None"}',
-            f'''
-            <a class="btn btn-sm btn-outline-secondary" href="/equipments/unarchive/{eq.id}/" onclick="return confirm('Unarchive this equipment?');">
-              <i class="bi bi-arrow-counterclockwise"></i> Recover
-            </a>
-            '''
+            actions
         ])
 
     return JsonResponse({
@@ -1030,6 +1086,7 @@ def archived_equipment_table_json(request):
     })
 
 @login_required
+@user_passes_test(is_admin_superadmin_encoder)
 def unarchive_equipment(request, pk):
     eq = get_object_or_404(Equipment, pk=pk)
     eq.is_archived = False
@@ -1043,6 +1100,7 @@ def unarchive_equipment(request, pk):
     return redirect('equipments:archived_equipments')
 
 @login_required
+@role_required_with_feedback(is_viewer_or_above)
 def equipment_history_json(request, equipment_id):
     history = EquipmentHistory.objects.filter(equipment_id=equipment_id).order_by('-changed_at')
     data = [
@@ -1065,7 +1123,7 @@ def history_logs(request):
     return render(request, 'equipments/history_logs.html', {'logs': logs})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def clear_history_logs(request):
     if request.method == 'POST':
         EquipmentActionLog.objects.all().delete()
@@ -1074,92 +1132,96 @@ def clear_history_logs(request):
     return redirect('equipments:history_logs')
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@user_passes_test(is_admin_or_superadmin)
 def reports_page(request):
-    from .models import Equipment, Category
-    from django.db.models import Sum
-    categories = Category.objects.all()
-    suppliers = Equipment.objects.exclude(supplier__isnull=True).exclude(supplier='').values_list('supplier', flat=True).distinct()
+    # 1) Pull filter parameters (with sensible defaults)
+    date_from = request.GET.get('fromDate')
+    date_to   = request.GET.get('toDate')
+    period    = request.GET.get('period', 'monthly')  # monthly or yearly
+
+    # 2) Base queryset, then apply date filters if provided
+    eqs = Equipment.objects.exclude(item_purdate__isnull=True)
+    if date_from:
+        eqs = eqs.filter(item_purdate__gte=date_from)
+    if date_to:
+        eqs = eqs.filter(item_purdate__lte=date_to)
+
+    # 3) Summary values
+    from django.db.models import Value as V
+    total_asset = eqs.aggregate(total=Sum('item_amount'))['total'] or 0
+    categories  = Category.objects.all()
+    suppliers   = (
+        Equipment.objects
+        .exclude(supplier__isnull=True)
+        .exclude(supplier='')
+        .values_list('supplier', flat=True)
+        .distinct()
+    )
     selected_category = request.GET.get('category', '')
     selected_supplier = request.GET.get('supplier', '')
-    eqs = Equipment.objects.all()
+
     if selected_category:
         eqs = eqs.filter(category_id=selected_category)
     if selected_supplier:
         eqs = eqs.filter(supplier=selected_supplier)
-    total_asset = eqs.aggregate(total=Sum('item_amount'))['total'] or 0
 
-    # Asset value by category
+    # 4) Assets by Category & Count
     asset_by_category = (
         eqs.values('category__name')
-        .annotate(total=Sum('item_amount'))
-        .order_by('-total')
+           .annotate(total=Sum('item_amount'))
+           .order_by('-total')
     )
-
-    # Asset count by category
     asset_count_by_category = (
         eqs.values('category__name')
-        .annotate(count=Count('id'))
-        .order_by('-count')
+           .annotate(count=Count('id'))
+           .order_by('-count')
     )
 
-    # Top suppliers by asset value
-    top_suppliers = (
-        eqs.values('supplier')
-        .annotate(total=Sum('item_amount'))
-        .order_by('-total')[:10]
-    )
-
-    # Asset status breakdown
+    # 5) Status breakdown
     status_breakdown = (
         eqs.values('status__name')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('-count')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('-count')
     )
 
-    # Recently added assets (last 5)
+    # 6) Recent assets
     recent_assets = eqs.order_by('-created_at')[:5]
 
-    # Monthly purchases (current year)
-    from django.utils import timezone
-    from django.db.models.functions import TruncMonth, ExtractYear
+    # 7) Purchases overview (monthly or yearly)
     now = timezone.now()
     current_year = now.year
-    monthly_purchases = (
+
+    monthly_qs = (
         eqs.filter(item_purdate__year=current_year)
-        .annotate(month=TruncMonth('item_purdate'))
-        .values('month')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('month')
+           .annotate(period=TruncMonth('item_purdate'))
+           .values('period')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('period')
+    )
+    yearly_qs = (
+        eqs.annotate(period=ExtractYear('item_purdate'))
+           .values('period')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('period')
     )
 
-    # Yearly purchases
-    yearly_purchases = (
-        eqs.exclude(item_purdate=None)
-        .annotate(year=ExtractYear('item_purdate'))
-        .values('year')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('year')
-    )
-
-    # Assets by Location and Status
+    # 8) Assets by location & status
     assets_by_location_status = (
         eqs.values('location', 'status__name')
-        .annotate(count=Count('id'), total=Sum('item_amount'))
-        .order_by('location', 'status__name')
+           .annotate(count=Count('id'), total=Sum('item_amount'))
+           .order_by('location', 'status__name')
     )
-
-    # For filter dropdowns
     locations = Equipment.objects.values_list('location', flat=True).distinct().order_by('location')
-    statuses = Equipment.objects.values_list('status__name', flat=True).distinct().order_by('status__name')
-    selected_location = request.GET.get('location', '')
-    selected_status = request.GET.get('status', '')
-    if selected_location:
-        assets_by_location_status = assets_by_location_status.filter(location=selected_location)
-    if selected_status:
-        assets_by_location_status = assets_by_location_status.filter(status__name=selected_status)
+    statuses  = Equipment.objects.values_list('status__name', flat=True).distinct().order_by('status__name')
+    sel_loc   = request.GET.get('location', '')
+    sel_stat  = request.GET.get('status', '')
 
-    # CSV Export
+    if sel_loc:
+        assets_by_location_status = assets_by_location_status.filter(location=sel_loc)
+    if sel_stat:
+        assets_by_location_status = assets_by_location_status.filter(status__name=sel_stat)
+
+    # 9) CSV export for location/status
     if request.GET.get('export_location_status') == '1':
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="assets_by_location_status.csv"'
@@ -1170,32 +1232,45 @@ def reports_page(request):
                 row['location'] or '(None)',
                 row['status__name'] or '(None)',
                 row['count'],
-                f"{row['total']:.2f}" if row['total'] is not None else '0.00'
+                f"{row['total']:.2f}" if row['total'] is not None else "0.00"
             ])
         return response
 
+    # 10) Prepare context
     context = {
+        # filter form persistence
+        'date_from': date_from,
+        'date_to':   date_to,
+        'period':    period,
+
+        # dropdowns
         'categories': categories,
-        'suppliers': suppliers,
+        'suppliers':  suppliers,
         'selected_category': selected_category,
         'selected_supplier': selected_supplier,
+
+        # summaries
         'total_asset': total_asset,
-        'asset_by_category': asset_by_category,
+        'asset_by_category':       asset_by_category,
         'asset_count_by_category': asset_count_by_category,
-        'top_suppliers': top_suppliers,
-        'status_breakdown': status_breakdown,
-        'recent_assets': recent_assets,
-        'monthly_purchases': monthly_purchases,
-        'yearly_purchases': yearly_purchases,
+        'status_breakdown':        status_breakdown,
+        'recent_assets':           recent_assets,
+
+        # purchases overview
+        'monthly_purchases': monthly_qs,
+        'yearly_purchases':  yearly_qs,
+
+        # location/status grid
         'assets_by_location_status': assets_by_location_status,
         'locations': locations,
-        'statuses': statuses,
-        'selected_location': selected_location,
-        'selected_status': selected_status,
+        'statuses':  statuses,
+        'selected_location': sel_loc,
+        'selected_status':  sel_stat,
     }
     return render(request, 'reports/reports.html', context)
 
 @login_required
+@user_passes_test(is_admin_or_superadmin)
 def generate_report(request):
     from .models import Equipment
     form = ReportFilterForm(request.GET or None)
@@ -1212,63 +1287,90 @@ def generate_report(request):
     for col, op, val in zip(filter_columns, filter_operators, filter_values):
         filter_rows.append({'column': col, 'operator': op, 'value': val})
     advanced_filters = Q()
+
+    # Field type and lookup map
     field_type_map = {
-        'id': int,
-        'item_amount': float,
-        'created_at': 'date',
-        'updated_at': 'date',
+        'id': 'int',
+        'item_amount': 'float',
+        'created_at': 'datetime',
+        'updated_at': 'datetime',
         'item_purdate': 'date',
+        'date_archived': 'datetime',
         'category': 'fk',
         'status': 'fk',
         'is_returned': 'bool',
         'is_archived': 'bool',
     }
+    # ForeignKey fields: use exact
+    fk_fields = {'category', 'status'}
+    # Date/Datetime fields
+    date_fields = {'item_purdate', 'created_at', 'updated_at', 'date_archived'}
+    # Boolean fields
+    bool_fields = {'is_returned', 'is_archived'}
+    # Char/Text fields (for icontains)
+    char_fields = {
+        'item_name', 'item_propertynum', 'item_desc', 'additional_info', 'po_number', 'fund_source', 'supplier',
+        'project_name', 'assigned_to', 'end_user', 'location', 'current_location', 'return_remarks', 'return_condition',
+        'return_type', 'returned_by', 'received_by',
+    }
+    # User fields (FK): created_by, updated_by, emp, archived_by
+    user_fk_fields = {'created_by', 'updated_by', 'emp', 'archived_by'}
+
     for col, op, val in zip(filter_columns, filter_operators, filter_values):
         if not col:
             continue
-        field_type = field_type_map.get(col, str)
+        if op in ['isnull', 'notnull']:
+            advanced_filters &= Q(**{f"{col}__isnull": op == 'isnull'})
+            continue
+        if not val and op not in ['isnull', 'notnull']:
+            continue
+        # Determine lookup and value conversion
+        lookup = op
+        filter_key = col
         val_conv = val
-        try:
-            if op in ['isnull', 'notnull']:
-                advanced_filters &= Q(**{f"{col}__isnull": op == 'isnull'})
-                continue
-            if field_type == int:
+        # ForeignKey fields: always use exact
+        if col in fk_fields:
+            lookup = 'exact'
+            filter_key = f"{col}__id"
+            try:
                 val_conv = int(val)
-            elif field_type == float:
-                val_conv = float(val)
-            elif field_type == 'date':
+            except Exception:
+                continue
+        # User FK fields: use exact on id
+        elif col in user_fk_fields:
+            lookup = 'exact'
+            filter_key = f"{col}__id"
+            try:
+                val_conv = int(val)
+            except Exception:
+                continue
+        # Date/Datetime fields
+        elif col in date_fields:
+            if op in ['exact', 'gt', 'lt', 'gte', 'lte']:
+                filter_key = col + ('__date' if field_type_map.get(col) == 'datetime' else '')
                 try:
                     val_conv = dt.strptime(val, '%Y-%m-%d').date()
                 except Exception:
-                    val_conv = val
-            elif field_type == 'bool':
-                val_conv = val.lower() in ['1', 'true', 'yes']
-            elif field_type == 'fk':
-                if col == 'category':
-                    from .models import Category
-                    try:
-                        val_conv = int(val)
-                        val_conv = Category.objects.get(pk=val_conv)
-                    except Exception:
-                        val_conv = Category.objects.filter(name__iexact=val).first()
-                    if val_conv:
-                        val_conv = val_conv.pk
-                elif col == 'status':
-                    from .models import Status
-                    try:
-                        val_conv = int(val)
-                        val_conv = Status.objects.get(pk=val_conv)
-                    except Exception:
-                        val_conv = Status.objects.filter(name__iexact=val).first()
-                    if val_conv:
-                        val_conv = val_conv.pk
-        except Exception:
-            val_conv = val
-        if op == 'isnull' or op == 'notnull':
-            continue
-        elif op in ['exact', 'iexact', 'icontains', 'gt', 'lt', 'gte', 'lte'] and val:
-            lookup = f"{col}__{op if op != 'exact' else 'iexact'}"
-            advanced_filters &= Q(**{lookup: val_conv})
+                    continue
+            else:
+                continue  # skip unsupported ops
+        # Boolean fields
+        elif col in bool_fields:
+            lookup = 'exact'
+            filter_key = col
+            val_conv = val.lower() in ['1', 'true', 'yes', 'on']
+        # Char/Text fields
+        elif col in char_fields:
+            if op not in ['exact', 'icontains']:
+                lookup = 'icontains'
+            filter_key = col + (f'__{lookup}' if lookup != 'exact' else '')
+        else:
+            # Fallback: use icontains for unknown fields
+            lookup = 'icontains'
+            filter_key = col + (f'__{lookup}' if lookup != 'exact' else '')
+        # Compose filter
+        if lookup in ['exact', 'iexact', 'icontains', 'gt', 'lt', 'gte', 'lte']:
+            advanced_filters &= Q(**{filter_key: val_conv})
     if filter_columns:
         equipments = equipments.filter(advanced_filters)
 
@@ -1321,15 +1423,20 @@ def generate_report(request):
                     row.append(getattr(eq, col, ''))
             writer.writerow(row)
         return response
+    # Get all categories for filter dropdown
+    categories = Category.objects.all().order_by('name')
+    statuses = Status.objects.all().order_by('name')
+    end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user='').values_list('end_user', flat=True).distinct()
+    assigned_to_list = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).distinct()
     context = {
         'form': form,
         'equipments': equipments,
         'selected_columns': selected_columns,
         'column_labels': column_labels,
         'filter_rows': filter_rows or None,  # ensure persistence of filter rows
+        'categories': categories,  # pass to template
+        'statuses': statuses,
+        'end_users': end_users,
+        'assigned_to_list': assigned_to_list,
     }
     return render(request, 'reports/generate_report.html', context)
-
-
-
-
