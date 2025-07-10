@@ -26,46 +26,29 @@ from .models import EquipmentHistory
 from .models import EquipmentActionLog
 from .models import ReportTemplate
 from .forms import ReportFilterForm
+from .helpers import (
+    is_admin,
+    is_encoder,
+    is_client,
+    is_superadmin,
+    is_admin_or_superadmin,
+    is_admin_superadmin_encoder,
+    encoder_readonly_or_denied,
+    is_viewer_or_above,
+    role_required_with_feedback
+)
 
-
-
-def is_admin(user):
-    return user.groups.filter(name='Admin').exists()
-
-def is_encoder(user):
-    return user.groups.filter(name='Encoder').exists()
-
-def is_client(user):
-    return user.groups.filter(name='Client').exists()
-    
-def is_superadmin(user):
-    return user.is_superuser
-
-def is_admin_or_superadmin(user):
-    return user.is_superuser or user.groups.filter(name='Admin').exists()
-
-def is_admin_superadmin_encoder(user):
-    return user.is_superuser or user.groups.filter(name__in=['Admin', 'Encoder']).exists()
-
-def encoder_readonly_or_denied(user):
-    # Encoders can only view, not delete/archive/restore or access restricted pages
-    return user.is_superuser or user.groups.filter(name='Admin').exists() or user.groups.filter(name='Encoder').exists()
-
-def role_required_with_feedback(test_func):
-    def decorator(view_func):
-        @wraps(view_func)
-        def _wrapped_view(request, *args, **kwargs):
-            if not test_func(request.user):
-                messages.error(request, "You do not have permission to access this page.")
-                return redirect('equipments:dashboard')
-            return view_func(request, *args, **kwargs)
-        return _wrapped_view
-    return decorator
-
+def is_viewer_or_above(user):
+    return (
+        user.is_superuser or 
+        user.groups.filter(name__in=['admin', 'encoder', 'client']).exists()
+    )
 
 
 @login_required
 def equipment_table_json(request):
+    is_client_user = request.user.groups.filter(name='client').exists()
+
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
     length = int(request.GET.get('length', 10))
@@ -159,70 +142,85 @@ def equipment_table_json(request):
 
     data = []
     for eq in equipments:
+        
         # Only show Delete and Archive for admin/superadmin
-        actions = f'''
-        <div class="dropdown" data-bs-auto-close="outside">
-        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Actions
-        </button>
-        <ul class="dropdown-menu">
-            <li>
-            <a class="dropdown-item" href="/equipments/edit/{eq.id}/">
-                <i class="bi bi-pencil-square"></i> Edit
-            </a>
-            </li>
-        '''
-        # Show Delete for admin/superadmin only, but Archive for admin/superadmin/encoder
-        if is_admin(request.user) or is_superadmin(request.user):
-            actions += f'''
-            <li>
-            <a class="dropdown-item" href="/equipments/delete/{eq.id}/" onclick="return confirm('Are you sure?');">
-                <i class="bi bi-trash"></i> Delete
-            </a>
-            </li>
-            '''
-        if is_admin(request.user) or is_superadmin(request.user) or is_encoder(request.user):
-            actions += f'''
-            <li>
-            <a class="dropdown-item" href="/equipments/archive/{eq.id}/" onclick="return confirm('Archive this equipment?');">
-                <i class="bi bi-archive"></i> Archive
-            </a>
-            </li>
-            '''
-        if not eq.is_returned:
-            actions += f'''
-            <li>
-            <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
-                <i class="bi bi-arrow-90deg-left"></i> Return
+        actions = ''
+        if not is_client(request.user):  # ✅ hide entire dropdown for clients
+            actions = f'''
+            <div class="dropdown" data-bs-auto-close="outside">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Actions
             </button>
-            </li>
+            <ul class="dropdown-menu">
+                <li>
+                <a class="dropdown-item" href="/equipments/edit/{eq.id}/">
+                    <i class="bi bi-pencil-square"></i> Edit
+                </a>
+                </li>
             '''
-        actions += '''
-        </ul>
-        </div>
-        '''
-
-        data.append([
+            if is_admin(request.user) or is_superadmin(request.user):
+                actions += f'''
+                <li>
+                <a class="dropdown-item" href="/equipments/delete/{eq.id}/" onclick="return confirm('Are you sure?');">
+                    <i class="bi bi-trash"></i> Delete
+                </a>
+                </li>
+                '''
+            if is_admin(request.user) or is_superadmin(request.user) or is_encoder(request.user):
+                actions += f'''
+                <li>
+                <a class="dropdown-item" href="/equipments/archive/{eq.id}/" onclick="return confirm('Archive this equipment?');">
+                    <i class="bi bi-archive"></i> Archive
+                </a>
+                </li>
+                '''
+            if not eq.is_returned:
+                actions += f'''
+                <li>
+                <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#returnModal" data-eqid="{eq.id}">
+                    <i class="bi bi-arrow-90deg-left"></i> Return
+                </button>
+                </li>
+                '''
+            actions += '''
+            </ul>
+            </div>
+            '''
+        status_colors = {
+            'Active': 'success',
+            'Damaged': 'danger',
+            'Maintenance': 'warning',
+            'Lost': 'secondary',
+            'Condemned': 'dark',
+        }
+        row = [
             '',  # 0: Checkbox placeholder
-            eq.id,  # 1: hidden ID
+            eq.id,
             f'<img src="{eq.user_image.url if eq.user_image else ""}" style="width:32px;height:32px;object-fit:cover;" class="img-thumbnail">',  # 2: Image
-            eq.item_propertynum,  # 3: Property #
-            eq.item_name,         # 4: Name
-            eq.item_desc if eq.item_desc else 'None',  # 5: Description
-            eq.po_number if eq.po_number else 'None',  # 6: PO Number
-            f'₱{eq.item_amount:,.2f}',                 # 7: Amount
-            eq.end_user if eq.end_user else 'None',    # 8: End User
-            eq.category.name,                          # 9: Category
-            eq.status.name,                            # 10: Status
-            actions,                                   # 11: Actions
-            eq.fund_source if eq.fund_source else 'None',         # 12: Fund Source
-            eq.supplier if eq.supplier else 'None',               # 13: Supplier
-            eq.assigned_to if eq.assigned_to else 'None',         # 14: Assigned To
-            eq.location if eq.location else 'None',               # 15: Deployment Location
-            eq.current_location if eq.current_location else 'None',# 16: Current Location
-            eq.item_purdate.strftime('%Y-%m-%d') if eq.item_purdate else 'None', # 17: PO Date
-            eq.project_name if eq.project_name else 'None',       # 18: Project Name
+            eq.item_propertynum,
+            eq.item_name,
+            eq.item_desc if eq.item_desc else 'None',
+            eq.po_number if eq.po_number else 'None',
+            f'₱{eq.item_amount:,.2f}',
+            eq.end_user if eq.end_user else 'None',
+            eq.category.name,
+            f'<span class="badge bg-{status_colors.get(eq.status.name, "secondary")}">{eq.status.name}</span>',
+        ]
+
+        row.append(actions if not is_client_user else '')  # ✅ Only push Actions column for non-client
+
+        # Continue pushing the rest
+        row.extend([
+            eq.fund_source if eq.fund_source else 'None',
+            eq.supplier if eq.supplier else 'None',
+            eq.assigned_to if eq.assigned_to else 'None',
+            eq.location if eq.location else 'None',
+            eq.current_location if eq.current_location else 'None',
+            eq.item_purdate.strftime('%Y-%m-%d') if eq.item_purdate else 'None',
+            eq.project_name if eq.project_name else 'None',
         ])
+
+        data.append(row)
 
     return JsonResponse({
         'draw': draw,
@@ -264,7 +262,7 @@ def equipment_detail_json(request, pk):
     return JsonResponse(data)
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def index(request):
     
     equipments = Equipment.objects.filter(is_returned=False).select_related('category', 'status', 'emp').all()
@@ -313,6 +311,7 @@ def index(request):
         'date_to': date_to,
         'is_admin': is_admin(request.user),
         'is_encoder': is_encoder(request.user),
+        'is_client': is_client(request.user),
     }
     
     return render(request, 'equipments/equipment_list.html', context)
@@ -645,6 +644,9 @@ def dashboard(request):
         'assigned_amounts': json.dumps(assigned_amounts),
         'itemname_labels': json.dumps(itemname_labels),
         'itemname_counts': json.dumps(itemname_counts),
+        'is_admin': is_admin(request.user),
+        'is_encoder': is_encoder(request.user),
+        'is_superadmin': is_superadmin(request.user),
     }
     return render(request, 'equipments/dashboard.html', context)
 
@@ -652,9 +654,9 @@ def dashboard(request):
 @user_passes_test(is_admin_or_superadmin)
 def user(request):
     users = User.objects.all().order_by('-date_joined')  # <-- Add this line
-    is_admin = request.user.groups.filter(name="Admin").exists()
+    is_admin = request.user.groups.filter(name="admin").exists()
     is_superadmin = request.user.groups.filter(name="Superadmin").exists()
-    is_encoder = request.user.groups.filter(name="Encoder").exists()
+    is_encoder = request.user.groups.filter(name="encoder").exists()
     return render(request, 'equipments/user.html', {
         'users': users,
         'is_admin': is_admin,
@@ -724,7 +726,7 @@ def delete_user(request, user_id):
 @login_required
 @user_passes_test(is_admin_superadmin_encoder)
 def category_list(request):
-    is_admin = request.user.groups.filter(name="Admin").exists()
+    is_admin = request.user.groups.filter(name="admin").exists()
     if request.method == 'POST':
         name = request.POST.get('name', '').strip()
         if name:
@@ -768,7 +770,7 @@ def delete_category(request, id):
 @login_required
 @user_passes_test(is_admin_superadmin_encoder)
 def status_list(request):
-    is_admin = request.user.groups.filter(name="Admin").exists()
+    is_admin = request.user.groups.filter(name="admin").exists()
     statuses = Status.objects.all()
     return render(request, 'equipments/status.html', {
         'statuses': statuses
@@ -907,13 +909,13 @@ def bulk_update_equipment(request):
     return JsonResponse({'success': True})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def returned(request):
     equipments = Equipment.objects.filter(is_returned=True)
     return render(request, 'equipments/returned.html', {'equipments': equipments})
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def returned_equipment_table_json(request):
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
@@ -972,7 +974,7 @@ def returned_equipment_table_json(request):
 
 @require_POST
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def return_equipment(request):
     eq_id = request.POST.get('equipment_id')
     file = request.FILES.get('return_document')
@@ -997,12 +999,12 @@ def return_equipment(request):
     return redirect('equipments:index')
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def archived_equipments(request):
     return render(request, 'equipments/archived_list.html')
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def archive_equipment(request, pk):
     equipment = get_object_or_404(Equipment, pk=pk)
     equipment.is_archived = True
@@ -1019,7 +1021,7 @@ def archive_equipment(request, pk):
     return redirect('equipments:index')
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def archived_equipment_table_json(request):
     draw = int(request.GET.get('draw', 1))
     start = int(request.GET.get('start', 0))
@@ -1100,7 +1102,7 @@ def unarchive_equipment(request, pk):
     return redirect('equipments:archived_equipments')
 
 @login_required
-@user_passes_test(is_admin_superadmin_encoder)
+@role_required_with_feedback(is_viewer_or_above)
 def equipment_history_json(request, equipment_id):
     history = EquipmentHistory.objects.filter(equipment_id=equipment_id).order_by('-changed_at')
     data = [

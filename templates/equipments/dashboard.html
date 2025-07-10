@@ -29,9 +29,11 @@
             <h4 class="fw-semibold mb-0">Dashboard</h4>
           </div>
           <div class="ms-auto">
-            <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm">
-              <i class="bi bi-plus-circle"></i> Add Equipment
-            </a>
+            {% if is_admin or is_encoder or is_superadmin %}
+              <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm">
+                <i class="bi bi-plus-circle"></i> Add Equipment
+              </a>
+            {% endif %}
           </div>
         </div>
         
