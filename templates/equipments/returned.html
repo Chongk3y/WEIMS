@@ -14,7 +14,6 @@
         <table id="returnedEquipmentTable" class="table compact-table table-hover table-striped table-bordered align-middle text-nowrap small">
           <thead class="table-success text-center align-middle">
             <tr>
-              <th></th>
               <th style="display:none;">ID</th>
               <th>Image</th>
               <th>Property #</th>
@@ -46,7 +45,6 @@ $(document).ready(function () {
       type: 'GET'
     },
     columns: [
-      { title: "Select", orderable: false },
       { title: "ID", visible: false },
       { title: "Image", orderable: false },
       { title: "Property #" },

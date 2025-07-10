@@ -950,7 +950,6 @@ def returned_equipment_table_json(request):
     data = []
     for eq in equipments:
         data.append([
-            '',  # checkbox placeholder
             eq.id,
             f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
             eq.item_propertynum,
@@ -1064,7 +1063,6 @@ def archived_equipment_table_json(request):
             </a>
             '''
         data.append([
-            '',  # checkbox placeholder
             eq.id,
             f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
             eq.item_propertynum,
