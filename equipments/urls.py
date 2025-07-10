@@ -39,6 +39,7 @@ urlpatterns = [
     path('history/clear/', views.clear_history_logs, name='clear_history_logs'),
     path('reports/', views.generate_report, name='reports_page'),
     path('financial-reports/', views.reports_page, name='financial_reports'),
+    path('by-user/', views.equipments_by_user, name='equipments_by_user'),
 ] + static(settings.MEDIA_URL, 
     document_root=settings.MEDIA_ROOT) + static(settings.STATIC_URL, 
     document_root=settings.STATIC_ROOT)

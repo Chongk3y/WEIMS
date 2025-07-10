@@ -19,6 +19,8 @@ from django.contrib.auth.models import User, Group
 import openpyxl
 from django.db.models.functions import TruncMonth, ExtractYear
 
+from django.http import JsonResponse
+
 # Local app imports
 from .models import Equipment, Category, Status
 from .models import EquipmentHistory
@@ -43,7 +45,22 @@ def is_admin_or_superadmin(user):
 def is_admin_superadmin_encoder(user):
     return user.is_superuser or user.groups.filter(name__in=['Admin', 'Encoder']).exists()
 
-
+@login_required
+def equipments_by_user(request):
+    username = request.GET.get('username', '').strip()
+    qs = Equipment.objects.filter(
+        end_user=username,
+        is_archived=False,
+        is_returned=False
+    ).select_related('category')
+    data = [
+        {
+            'name': eq.item_name,
+            'category': eq.category.name if eq.category else ''
+        }
+        for eq in qs
+    ]
+    return JsonResponse(data, safe=False)
 
 @login_required
 def equipment_table_json(request):
