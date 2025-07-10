@@ -4,199 +4,194 @@
 
 {% block content %}
 <style>
-  /* Uniform chart card and canvas sizing */
-  .dashboard-chart-card .card-body {
-    min-height: 220px;
+  .dashboard-header {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
   }
+
+  .card-metric {
+    color: #fff;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .dashboard-chart-card .card-body {
+    padding: 1rem;
+  }
+
   .dashboard-chart-card canvas {
     width: 100% !important;
-    height: 180px !important;
-    max-width: 100%;
-    max-height: 180px;
+  }
+
+  .card-header-sm {
+    font-size: 0.875rem;
+    font-weight: 600;
+    padding: 0.6rem 1rem;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .card-header-dark {
+    background-color: #0d6efd;
+    color: #fff;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+  }
+
+  .view-all-link {
+    display: block;
+    text-align: center;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-decoration: none;
+    color: #0d6efd;
+  }
+
+  .view-all-link:hover {
+    text-decoration: underline;
   }
 </style>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<div class="container-fluid py-3 px-3">
+<div class="container-fluid py-4 px-3">
   <!-- Header -->
+  <div class="dashboard-header">
+    <h4 class="fw-semibold mb-0">📊 Dashboard Overview</h4>
+    <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm">
+      <i class="bi bi-plus-circle"></i> Add Equipment
+    </a>
+  </div>
 
-
-        <div class="d-flex align-items-center mb-3">
-          <div class="flex-grow-1">
-            <h4 class="fw-semibold mb-0">Dashboard</h4>
-          </div>
-          <div class="ms-auto">
-            <a href="{% url 'equipments:add' %}" class="btn btn-outline-success btn-sm">
-              <i class="bi bi-plus-circle"></i> Add Equipment
-            </a>
-          </div>
-        </div>
-        
   <!-- Summary Cards -->
   <div class="row g-3">
-    <!-- Total -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(234, 133, 26);"> <!-- Solid dark green -->
-        <div class="card-body p-2">
-          
-          <h2 class="fw-bold text-white">{{ total_equipments }}</h2>
-          <small class="text-white">Total</small>
+      <div class="card shadow-sm border-0 bg-primary">
+        <div class="card-metric">
+          <h2 class="fw-bold">{{ total_equipments }}</h2>
+          <small>Total Equipments</small>
         </div>
       </div>
     </div>
-
-    <!-- Archived -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(227, 25, 25);"> <!-- Solid dark green -->
-        <div class="card-body p-2">
-          
-          <h2 class="fw-bold text-white">{{ total_archived }}</h2>
-          <small class="text-white">Archived</small>
+      <div class="card shadow-sm border-0 bg-info">
+        <div class="card-metric">
+          <h2 class="fw-bold">{{ total_archived }}</h2>
+          <small>Archived</small>
         </div>
       </div>
     </div>
-
-    <!-- Returned -->
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(28, 233, 110);"> <!-- Dark green variant -->
-        <div class="card-body p-2">
-          
-          <h2 class="fw-bold text-white">{{ total_returned }}</h2>
-          <small class="text-white">Returned</small>
+      <div class="card shadow-sm border-0 bg-success">
+        <div class="card-metric">
+          <h2 class="fw-bold">{{ total_returned }}</h2>
+          <small>Returned</small>
         </div>
       </div>
     </div>
-
-    <!-- Dynamic Status Cards -->
     {% for status in status_counts %}
     <div class="col-6 col-md-3">
-      <div class="card shadow-sm border-0 text-center" style="background-color:rgb(34, 63, 230);"> <!-- Use same dark green -->
-        <div class="card-body p-2">
-          
-          <h2 class="fw-bold text-white">{{ status.count }}</h2>
-          <small class="text-white">{{ status.name }}</small>
+      <div class="card shadow-sm border-0 bg-warning">
+        <div class="card-metric">
+          <h2 class="fw-bold">{{ status.count }}</h2>
+          <small>{{ status.name }}</small>
         </div>
       </div>
     </div>
     {% endfor %}
   </div>
 
-
-
-  <!-- Charts and Recent -->
+  <!-- Recent / Category / Status (Equal Height) -->
   <div class="row mt-4 g-3">
-    <!-- Recent -->
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0 rounded-4 bg-white">
-        <div class="card-header py-3" style="background-color: #14532d;"> <!-- Darker green -->
-          <h6 class="mb-0 text-white d-flex align-items-center gap-2">
-            <i class="bi bi-clock-history"></i> Recent Equipments
-          </h6>
+    <div class="col-md-4 d-flex">
+      <div class="card shadow-sm border-0 flex-fill d-flex flex-column">
+        <div class="card-header-dark">
+          <i class="bi bi-clock-history me-1"></i> Recent Equipments
         </div>
-        <div class="card-body p-3">
+        <div class="card-body p-3 flex-grow-1">
           {% if recent_equipments %}
           <ul class="list-group list-group-flush">
             {% for eq in recent_equipments %}
-            <li class="list-group-item d-flex justify-content-between align-items-start px-3 py-2 border-0 border-bottom">
-              <div class="me-2">
-                <div class="fw-semibold text-dark">{{ eq.item_name }}</div>
+            <li class="list-group-item d-flex justify-content-between align-items-start px-3 py-2">
+              <div>
+                <div class="fw-semibold">{{ eq.item_name }}</div>
                 <div class="text-muted small">{{ eq.item_propertynum }} • {{ eq.item_purdate }}</div>
               </div>
-              <span class="badge rounded-pill px-3 py-1 small" style="background-color:rgb(62, 161, 197); color: white;">
-                {{ eq.category.name }}
-              </span>
+              <span class="badge bg-info text-white">{{ eq.category.name }}</span>
             </li>
             {% endfor %}
           </ul>
           {% else %}
-          <div class="text-center text-muted small">No recent items found.</div>
+          <div class="text-center text-muted">No recent equipments.</div>
           {% endif %}
+         </div>
+<div class="mt-auto px-3 pb-3">
+  <a href="{% url 'equipments:index' %}" class="view-all-link">View All</a>
         </div>
       </div>
     </div>
 
-
-
-  <div class="col-md-4">
-    <div class="card shadow-sm border-0 rounded-4 bg-white">
-      <div class="card-header py-3" style="background-color: #14532d;">
-        <h6 class="mb-0 text-white d-flex align-items-center gap-2">
-          <i class="bi bi-folder2-open"></i> By Category
-        </h6>
+    <div class="col-md-4 d-flex">
+      <div class="card shadow-sm border-0 dashboard-chart-card flex-fill">
+        <div class="card-header-dark"><i class="bi bi-folder2-open me-1"></i> By Category</div>
+        <div class="card-body"><canvas id="categoryChart"></canvas></div>
       </div>
-      <div class="card-body p-3">
-        <canvas id="categoryChart" height="200"></canvas>
+    </div>
+
+    <div class="col-md-4 d-flex">
+      <div class="card shadow-sm border-0 dashboard-chart-card flex-fill">
+        <div class="card-header-dark"><i class="bi bi-pie-chart-fill me-1"></i> By Status</div>
+        <div class="card-body"><canvas id="statusChart"></canvas></div>
       </div>
     </div>
   </div>
 
-    <!-- Status Pie Chart -->
-    <div class="col-md-4">
-      <div class="card shadow-sm border-0 rounded-4 bg-white">
-        <div class="card-header py-3" style="background-color: #14532d;">
-          <h6 class="mb-0 text-white d-flex align-items-center gap-2">
-            <i class="bi bi-pie-chart-fill"></i> By Status
-          </h6>
-        </div>
-        <div class="card-body p-3">
-          <canvas id="statusChart" height="200"></canvas>
-        </div>
-      </div>
-    </div>
-
-  <!-- Monthly Line Chart -->
+  <!-- Acquired Per Month + Year Filter -->
   <div class="row mt-4 g-3">
     <div class="col-md-12">
       <div class="card shadow-sm border-0 dashboard-chart-card">
-        <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">📈 Equipments Acquired Per Year (PO Date)</small>
+        <div class="card-header-sm d-flex justify-content-between align-items-center">
+          📅 Equipments Acquired Per Month
+          <form method="get" id="yearFilterForm">
+            <select name="year" id="yearDropdown" class="form-select form-select-sm" style="width: auto;" onchange="document.getElementById('yearFilterForm').submit();">
+              {% for y in available_years %}
+              <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </form>
         </div>
-        <div class="card-body p-2">
+        <div class="card-body" style="height: 280px;">
           <canvas id="monthlyChart"></canvas>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Equipments by End User: Count and Total Cost -->
+  <!-- End User + Assigned To -->
   <div class="row mt-4 g-3">
-    <div class="col-md-12">
+    <div class="col-md-6">
       <div class="card shadow-sm border-0 dashboard-chart-card">
-        <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">👤 Equipments by End User: Count & Total Cost</small>
-        </div>
-        <div class="card-body p-2">
-          <canvas id="endUserChart"></canvas>
-        </div>
+        <div class="card-header-sm">👤 Equipments by End User: Count & Total Cost</div>
+        <div class="card-body"><canvas id="endUserChart"></canvas></div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card shadow-sm border-0 dashboard-chart-card">
+        <div class="card-header-sm">👤 Equipments by Assigned To: Count & Total Cost</div>
+        <div class="card-body"><canvas id="assignedToChart"></canvas></div>
       </div>
     </div>
   </div>
 
-  <!-- Equipments by Assigned To: Count and Total Cost -->
+  <!-- By Name (Grouped + Amount Tooltip) -->
   <div class="row mt-4 g-3">
     <div class="col-md-12">
       <div class="card shadow-sm border-0 dashboard-chart-card">
-        <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">👤 Equipments by Assigned To: Count & Total Cost</small>
-        </div>
-        <div class="card-body p-2">
-          <canvas id="assignedToChart"></canvas>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Equipments by Item Name: Total Number -->
-  <div class="row mt-4 g-3">
-    <div class="col-md-12">
-      <div class="card shadow-sm border-0 dashboard-chart-card">
-        <div class="card-header py-2 bg-light">
-          <small class="fw-semibold">🔢 Equipments by Name: Total Number</small>
-        </div>
-        <div class="card-body p-2">
+        <div class="card-header-sm">🔢 Equipments by Name: Total Number & Amount</div>
+        <div class="card-body" style="overflow-x: auto;">
           <canvas id="itemNameChart"></canvas>
         </div>
       </div>
@@ -206,175 +201,144 @@
 
 <!-- Chart Scripts -->
 <script>
-  // Category Bar Chart
-  const ctxCategory = document.getElementById('categoryChart').getContext('2d');
-  new Chart(ctxCategory, {
-    type: 'bar',
-    data: {
-      labels: {{ category_labels|safe }},
-      datasets: [{
-        label: 'Equipments',
-        data: {{ category_counts|safe }},
-        backgroundColor: '#0e4a39',
-        borderRadius: 5
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1 } }
+  const renderBarChart = (id, labels, data, label, color) => {
+    new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: { labels, datasets: [{ label, data, backgroundColor: color, borderRadius: 5 }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Count' } } }
       }
-    }
-  });
+    });
+  };
 
-  // Status Pie Chart
-  const ctxStatus = document.getElementById('statusChart').getContext('2d');
-  new Chart(ctxStatus, {
-    type: 'pie',
-    data: {
-      labels: {{ status_labels|safe }},
-      datasets: [{
-        label: 'By Status',
-        data: {{ status_data|safe }},
-        backgroundColor: [
-          '#0e4a39', '#198754', '#ffc107', '#dc3545', '#6c757d', '#0d6efd', '#6610f2', '#fd7e14', '#20c997', '#e83e8c'
+  const renderPieChart = (id, labels, data) => {
+    new Chart(document.getElementById(id), {
+      type: 'pie',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          backgroundColor: ['#0d6efd', '#20c997', '#ffc107', '#dc3545', '#6f42c1', '#6610f2', '#fd7e14', '#0dcaf0']
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } }
+      }
+    });
+  };
+
+  const renderLineChart = (id, labels, data) => {
+    new Chart(document.getElementById(id), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Added',
+          data,
+          fill: true,
+          borderColor: '#0e4a39',
+          backgroundColor: 'rgba(14, 74, 57, 0.1)',
+          pointBackgroundColor: '#0e4a39',
+          pointRadius: 4,
+          tension: 0.3
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.parsed.y} equipment(s)`
+            }
+          }
+        },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Count' } },
+          x: { title: { display: true, text: 'Month' } }
+        }
+      }
+    });
+  };
+
+  const renderGroupedBarChart = (id, labels, dataset1, dataset2) => {
+    new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Count', data: dataset1, backgroundColor: '#0d6efd', yAxisID: 'y' },
+          { label: 'Total Cost', data: dataset2, backgroundColor: '#ffc107', yAxisID: 'y1' }
         ]
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } }
-    }
-  });
-
-  // Monthly Line Chart
-  const ctxMonthly = document.getElementById('monthlyChart').getContext('2d');
-  new Chart(ctxMonthly, {
-    type: 'line',
-    data: {
-      labels: {{ month_labels|safe }},
-      datasets: [{
-        label: 'Added',
-        data: {{ month_data|safe }},
-        fill: false,
-        borderColor: '#0e4a39',
-        tension: 0.2
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-      }
-    }
-  });
-
-  // Equipments by End User: Count and Total Cost (Grouped Bar)
-  const ctxEndUser = document.getElementById('endUserChart').getContext('2d');
-  new Chart(ctxEndUser, {
-    type: 'bar',
-    data: {
-      labels: {{ enduser_labels|safe }},
-      datasets: [
-        {
-          label: 'Number of Equipments',
-          data: {{ enduser_counts|safe }},
-          backgroundColor: '#0d6efd',
-          yAxisID: 'y',
-        },
-        {
-          label: 'Total Cost',
-          data: {{ enduser_amounts|safe }},
-          backgroundColor: '#ffc107',
-          yAxisID: 'y1',
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Count' },
-        },
-        y1: {
-          beginAtZero: true,
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          title: { display: true, text: 'Total Cost (₱)' },
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        scales: {
+          y: { beginAtZero: true, title: { display: true, text: 'Count' } },
+          y1: {
+            beginAtZero: true,
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Total Cost (₱)' }
+          }
         }
       }
-    }
-  });
+    });
+  };
 
-  // Equipments by Assigned To: Count and Total Cost (Grouped Bar)
-  const ctxAssignedTo = document.getElementById('assignedToChart').getContext('2d');
-  new Chart(ctxAssignedTo, {
-    type: 'bar',
-    data: {
-      labels: {{ assigned_labels|safe }},
-      datasets: [
-        {
-          label: 'Number of Equipments',
-          data: {{ assigned_counts|safe }},
-          backgroundColor: '#20c997',
-          yAxisID: 'y',
+  const renderHorizontalBarWithTooltip = (id, labels, data, amounts) => {
+    const canvas = document.getElementById(id);
+    canvas.height = labels.length * 25;
+    new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Count',
+          data,
+          backgroundColor: '#6610f2',
+          borderRadius: 4
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                let idx = ctx.dataIndex;
+                let count = data[idx];
+                let amt = amounts[idx] || 0;
+                return `Count: ${count}, Amount: ₱${amt.toLocaleString()}`;
+              }
+            }
+          },
+          legend: { display: false }
         },
-        {
-          label: 'Total Cost',
-          data: {{ assigned_amounts|safe }},
-          backgroundColor: '#fd7e14',
-          yAxisID: 'y1',
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
-      scales: {
-        y: {
-          beginAtZero: true,
-          title: { display: true, text: 'Count' },
-        },
-        y1: {
-          beginAtZero: true,
-          position: 'right',
-          grid: { drawOnChartArea: false },
-          title: { display: true, text: 'Total Cost (₱)' },
+        scales: {
+          x: { beginAtZero: true, title: { display: true, text: 'Count' } },
+          y: { title: { display: true, text: 'Item Name' } }
         }
       }
-    }
-  });
+    });
+  };
 
-  // Equipments by Item Name: Total Number (Bar)
-  const ctxItemName = document.getElementById('itemNameChart').getContext('2d');
-  new Chart(ctxItemName, {
-    type: 'bar',
-    data: {
-      labels: {{ itemname_labels|safe }},
-      datasets: [{
-        label: 'Total Number',
-        data: {{ itemname_counts|safe }},
-        backgroundColor: '#6610f2',
-        borderRadius: 5
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: {
-        y: { beginAtZero: true, ticks: { stepSize: 1 } }
-      }
-    }
-  });
+  // Render Charts
+  renderBarChart('categoryChart', {{ category_labels|safe }}, {{ category_counts|safe }}, 'Equipments', '#0e4a39');
+  renderPieChart('statusChart', {{ status_labels|safe }}, {{ status_data|safe }});
+  renderLineChart('monthlyChart', {{ month_labels|safe }}, {{ month_data|safe }});
+  renderGroupedBarChart('endUserChart', {{ enduser_labels|safe }}, {{ enduser_counts|safe }}, {{ enduser_amounts|safe }});
+  renderGroupedBarChart('assignedToChart', {{ assigned_labels|safe }}, {{ assigned_counts|safe }}, {{ assigned_amounts|safe }});
+  renderHorizontalBarWithTooltip('itemNameChart', {{ itemname_labels|safe }}, {{ itemname_counts|safe }}, {{ itemname_amounts|safe }});
 </script>
 {% endblock %}
