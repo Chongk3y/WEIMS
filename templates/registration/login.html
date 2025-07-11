@@ -1,10 +1,10 @@
-{% extends 'base.html' %}
+{% extends 'base_auth.html' %}
 {% load static %}
 
 {% block title %}Sign In - WEIMS{% endblock %}
 
 {% block custom_css %}
-<link rel="stylesheet" href="{% static 'css/login.css' %}">
+  <link rel="stylesheet" href="{% static 'css/login.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -47,6 +47,3 @@
     </div>
 </div>
 {% endblock %}
-
-{% block sidebar %}{% endblock %}
-{% block header %}{% endblock %}

@@ -395,7 +395,7 @@
 <script>
 let table;
 $(document).ready(function () {
-  const isClient = {{ is_client|yesno:"true,false" }};
+   const isClient = {{ is_client|yesno:"true,false" }};
   const columnMap = {
   2: 'Property #',
   3: 'Name',
@@ -458,7 +458,6 @@ table = $('#equipmentTable').DataTable({
       orderable: false,
       visible: !isClient
     }, 
-    // Add extra columns (hidden by default)
     { title: "Fund Source", visible: false },      // 12
     { title: "Supplier", visible: false },         // 13
     { title: "Assigned To", visible: false },      // 14
