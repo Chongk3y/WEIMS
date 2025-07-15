@@ -128,9 +128,8 @@ USE_TZ = False
 STATIC_URL = '/static/'
 
 # This tells Django where to find your project's top-level 'static' folder
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),
-]
+STATICFILES_DIRS = [BASE_DIR / "equipments" / "static"]
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
