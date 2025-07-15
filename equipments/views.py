@@ -1221,6 +1221,64 @@ def reports_page(request):
     if sel_stat:
         assets_by_location_status = assets_by_location_status.filter(status__name=sel_stat)
 
+    if request.GET.get('export') == 'csv':
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="finance_report.csv"'
+        writer = csv.writer(response)
+
+        # Section: Assets by Category
+        writer.writerow(['--- Assets by Category ---'])
+        writer.writerow(['Category', 'Total Value (₱)', 'Count'])
+        for row in asset_by_category:
+            count = next((c['count'] for c in asset_count_by_category if c['category__name'] == row['category__name']), 0)
+            writer.writerow([
+                row['category__name'],
+                f"{row['total']:.2f}" if row['total'] else "0.00",
+                count
+            ])
+
+        # Section: Purchases Overview
+        writer.writerow([])
+        writer.writerow(['--- Purchases Overview ---'])
+        writer.writerow(['Period', 'Count', 'Total Value (₱)'])
+        data = monthly_qs if period == 'monthly' else yearly_qs
+        for row in data:
+            period_label = row['period'].strftime('%B %Y') if period == 'monthly' else str(row['period'])
+            writer.writerow([
+                period_label,
+                row['count'],
+                f"{row['total']:.2f}" if row['total'] else "0.00"
+            ])
+
+        # Section: Recently Added Assets
+        writer.writerow([])
+        writer.writerow(['--- Recently Added Assets ---'])
+        writer.writerow(['Property #', 'Name', 'Category', 'Supplier', 'Amount (₱)', 'Purchase Date'])
+        for eq in recent_assets:
+            writer.writerow([
+                eq.item_propertynum,
+                eq.item_name,
+                eq.category.name if eq.category else '(None)',
+                eq.supplier or '(None)',
+                f"{eq.item_amount:.2f}" if eq.item_amount else "0.00",
+                eq.item_purdate.strftime('%Y-%m-%d') if eq.item_purdate else '(None)'
+            ])
+
+        # Section: Assets by Location & Status
+        writer.writerow([])
+        writer.writerow(['--- Assets by Location & Status ---'])
+        writer.writerow(['Location', 'Status', 'Asset Count', 'Total Value (₱)'])
+        for row in assets_by_location_status:
+            writer.writerow([
+                row['location'] or '(None)',
+                row['status__name'] or '(None)',
+                row['count'],
+                f"{row['total']:.2f}" if row['total'] is not None else "0.00"
+            ])
+
+        return response
+
+
     # 9) CSV export for location/status
     if request.GET.get('export_location_status') == '1':
         response = HttpResponse(content_type='text/csv')
