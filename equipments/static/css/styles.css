@@ -35,7 +35,7 @@ html, body {
     visibility: visible !important;
     position: sticky !important;
     top: 0;
-    height: 100vh;
+    height: 100dvh;
   }
 
   .sidebar-nav .offcanvas-header {
@@ -98,6 +98,7 @@ html, body {
 
   .wrapper.sidebar-collapsed .sidebar-nav .nav-link i {
     margin-right: 0;
+    font-size: 1rem;
   }
 
   .wrapper.sidebar-collapsed .submenu-arrow {
