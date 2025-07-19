@@ -324,12 +324,23 @@ def add_equipment(request):
     users = User.objects.all()
     categories = Category.objects.all()
     statuses = Status.objects.all()
+    # Get distinct values from existing equipment for combo boxes
+    existing_end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user__exact='').values_list('end_user', flat=True).distinct().order_by('end_user')
+    existing_assigned_to = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to__exact='').values_list('assigned_to', flat=True).distinct().order_by('assigned_to')
+    existing_project_names = Equipment.objects.exclude(project_name__isnull=True).exclude(project_name__exact='').values_list('project_name', flat=True).distinct().order_by('project_name')
+    existing_locations = Equipment.objects.exclude(location__isnull=True).exclude(location__exact='').values_list('location', flat=True).distinct().order_by('location')
+    existing_current_locations = Equipment.objects.exclude(current_location__isnull=True).exclude(current_location__exact='').values_list('current_location', flat=True).distinct().order_by('current_location')
     from datetime import date
     today_date = date.today()
     return render(request, 'equipments/add.html', {
         'users': users,
         'categories': categories,
         'statuses': statuses,
+        'existing_end_users': existing_end_users,
+        'existing_assigned_to': existing_assigned_to,
+        'existing_project_names': existing_project_names,
+        'existing_locations': existing_locations,
+        'existing_current_locations': existing_current_locations,
         'today_date': today_date,
         'is_admin': is_admin(request.user),
         'is_encoder': is_encoder(request.user),
@@ -351,6 +362,8 @@ def processaddequipment(request):
         item_amount = request.POST.get('item_amount')
         assigned_to = request.POST.get('assigned_to') or None
         location = request.POST.get('location') or None
+        current_location = request.POST.get('current_location') or None
+        project_name = request.POST.get('project_name') or None
         end_user = request.POST.get('end_user') or None
         category_id = request.POST.get('category_id')
         status_id = request.POST.get('status_id')
@@ -371,6 +384,12 @@ def processaddequipment(request):
             users = User.objects.all()
             categories = Category.objects.all()
             statuses = Status.objects.all()
+            # Re-fetch existing values for combo boxes when there are errors
+            existing_end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user__exact='').values_list('end_user', flat=True).distinct().order_by('end_user')
+            existing_assigned_to = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to__exact='').values_list('assigned_to', flat=True).distinct().order_by('assigned_to')
+            existing_project_names = Equipment.objects.exclude(project_name__isnull=True).exclude(project_name__exact='').values_list('project_name', flat=True).distinct().order_by('project_name')
+            existing_locations = Equipment.objects.exclude(location__isnull=True).exclude(location__exact='').values_list('location', flat=True).distinct().order_by('location')
+            existing_current_locations = Equipment.objects.exclude(current_location__isnull=True).exclude(current_location__exact='').values_list('current_location', flat=True).distinct().order_by('current_location')
             from datetime import date
             today_date = date.today()
             return render(request, 'equipments/add.html', {
@@ -379,6 +398,11 @@ def processaddequipment(request):
                 'users': users,
                 'categories': categories,
                 'statuses': statuses,
+                'existing_end_users': existing_end_users,
+                'existing_assigned_to': existing_assigned_to,
+                'existing_project_names': existing_project_names,
+                'existing_locations': existing_locations,
+                'existing_current_locations': existing_current_locations,
                 'today_date': today_date,
                 'is_admin': is_admin(request.user),
                 'is_encoder': is_encoder(request.user),
@@ -396,6 +420,8 @@ def processaddequipment(request):
                 item_amount=item_amount,
                 assigned_to=assigned_to,
                 location=location,
+                current_location=current_location,
+                project_name=project_name,
                 end_user=end_user,
                 emp=request.user,
                 category_id=category_id,
