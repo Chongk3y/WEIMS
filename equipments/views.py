@@ -1501,6 +1501,8 @@ def reports_page(request):
 @user_passes_test(is_admin_or_superadmin)
 def generate_report(request):
     from .models import Equipment
+    
+    # Initialize form only once with GET data
     form = ReportFilterForm(request.GET or None)
     equipments = Equipment.objects.all()
     selected_columns = []  # Ensure selected_columns is always defined
@@ -1614,12 +1616,30 @@ def generate_report(request):
         if form.cleaned_data['assigned_to']:
             equipments = equipments.filter(assigned_to__icontains=form.cleaned_data['assigned_to'])
 
-    # Always use the current GET data for form and selected_columns
-    form = ReportFilterForm(request.GET or None)
-    if form.is_valid():
+    # Handle column selection
+    if request.GET.get('columns') or form.is_valid():
+        # User has made column selections or form is valid with data
         selected_columns = list(form.cleaned_data.get('columns') or [])
     else:
-        selected_columns = []
+        # First visit with no parameters - use form's initial values
+        selected_columns = form.fields['columns'].initial or []
+    
+    # If still no columns are selected, use default columns as fallback
+    if not selected_columns:
+        selected_columns = [
+            'user_image',           # Image
+            'item_propertynum',     # Property #
+            'item_name',            # Name
+            'item_desc',            # Description
+            'po_number',            # PO Number
+            'item_amount',          # Amount
+            'end_user',             # End User
+            'assigned_to',          # Assigned To
+            'category',             # Category
+            'item_purdate',         # PO Date
+            'current_location',     # Current Location
+        ]
+    
     seen = set()
     selected_columns = [x for x in selected_columns if not (x in seen or seen.add(x))]
 
@@ -1633,12 +1653,13 @@ def generate_report(request):
                 column_labels[value] = label
 
     if request.GET.get('export') == 'csv':
+        # For CSV export, use all equipments (before pagination)
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="equipment_report.csv"'
         writer = csv.writer(response)
         # Write header
         writer.writerow([column_labels.get(col, col) for col in selected_columns])
-        for eq in equipments:
+        for eq in equipments:  # This is the full queryset before pagination
             row = []
             for col in selected_columns:
                 if col == 'category':
@@ -1651,6 +1672,31 @@ def generate_report(request):
                     row.append(getattr(eq, col, ''))
             writer.writerow(row)
         return response
+    
+    # Add pagination (but not for print_all or export)
+    from django.core.paginator import Paginator
+    
+    # Check if this is a print request for all results
+    print_all = request.GET.get('print_all')
+    
+    if not print_all and request.GET.get('export') != 'csv':
+        per_page = request.GET.get('per_page', 25)  # Default to 25 items per page
+        try:
+            per_page = int(per_page)
+            if per_page not in [10, 25, 50, 100]:  # Only allow specific values
+                per_page = 25
+        except ValueError:
+            per_page = 25
+        
+        paginator = Paginator(equipments, per_page)
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+    else:
+        # For print_all or export, don't paginate - use all results
+        from django.core.paginator import Paginator
+        paginator = Paginator(equipments, equipments.count() or 1)  # Create a single page with all results
+        page_obj = paginator.get_page(1)
+    
     # Get all categories for filter dropdown
     categories = Category.objects.all().order_by('name')
     statuses = Status.objects.all().order_by('name')
@@ -1658,7 +1704,8 @@ def generate_report(request):
     assigned_to_list = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).distinct()
     context = {
         'form': form,
-        'equipments': equipments,
+        'equipments': page_obj,  # Changed from equipments to page_obj
+        'page_obj': page_obj,    # Add page object for pagination controls
         'selected_columns': selected_columns,
         'column_labels': column_labels,
         'filter_rows': filter_rows or None,  # ensure persistence of filter rows

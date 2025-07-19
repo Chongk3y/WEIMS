@@ -76,6 +76,18 @@ class ReportFilterForm(forms.Form):
         choices=COLUMN_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        initial=['item_name', 'category', 'status', 'assigned_to', 'created_at']
+        initial=[
+            'user_image',           # Image
+            'item_propertynum',     # Property #
+            'item_name',            # Name
+            'item_desc',            # Description
+            'po_number',            # PO Number
+            'item_amount',          # Amount
+            'end_user',             # End User
+            'assigned_to',          # Assigned To
+            'category',             # Category
+            'item_purdate',         # PO Date
+            'current_location',     # Current Location
+        ]
     )
     # Add more filters as needed

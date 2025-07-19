@@ -47,13 +47,29 @@
   .printable-report .table,
   .printable-report .table th,
   .printable-report .table td {
-    font-size: 11px !important;
-    padding: 2px 4px !important;
+    font-size: 10px !important;
+    padding: 1px 3px !important;
     border-width: 1px !important;
   }
   .printable-report .table th,
   .printable-report .table td {
     vertical-align: middle !important;
+  }
+  /* Ensure images are small in print */
+  .printable-report img {
+    max-width: 30px !important;
+    max-height: 30px !important;
+  }
+  /* Break tables across pages if needed */
+  .printable-report table {
+    page-break-inside: auto;
+  }
+  .printable-report tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  .printable-report th {
+    page-break-after: avoid;
   }
 }
 .print-header {
@@ -64,6 +80,7 @@
   <h2 class="fw-semibold mb-4"><i class="bi bi-file-earmark-bar-graph"></i> Generate Equipment Report</h2>
 
   <!-- Advanced Filter and Column Selection Card -->
+  {% if not request.GET.print_all %}
   <div class="card shadow-sm mb-4">
     <div class="card-body">
       <form method="get" id="advanced-filter-form">
@@ -73,6 +90,16 @@
             <input type="hidden" name="columns" value="{{ col }}">
           {% endif %}
         {% endfor %}
+        
+        <!-- Persist current page when applying new filters -->
+        {% if request.GET.page %}
+          <input type="hidden" name="page" value="{{ request.GET.page }}" id="page-input">
+        {% endif %}
+        
+        <!-- Persist per_page setting -->
+        {% if request.GET.per_page %}
+          <input type="hidden" name="per_page" value="{{ request.GET.per_page }}" id="per-page-input">
+        {% endif %}
         <div id="advanced-filter-rows">
           {% if filter_rows %}
             {% for row in filter_rows %}
@@ -372,8 +399,10 @@
       <small class="text-muted">Add multiple filter conditions as needed. Filters are combined with AND.</small>
     </div>
   </div>
+  {% endif %}
 
   <!-- Modal for column selection -->
+  {% if not request.GET.print_all %}
   <div class="modal fade" id="columnModal" tabindex="-1" aria-labelledby="columnModalLabel" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -407,6 +436,7 @@
       </div>
     </div>
   </div>
+  {% endif %}
 
   <script>
     // Column selection modal: Apply button logic
@@ -429,6 +459,7 @@
             input.value = cb.value;
             mainForm.appendChild(input);
           });
+          // Don't reset page for column changes - keep current page
           // Submit the main form (all filter fields and values are preserved)
           mainForm.submit();
         });
@@ -437,6 +468,31 @@
   </script>
 
   <script>
+  // Function to change items per page
+  function changePerPage(value) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('per_page', value);
+    urlParams.set('page', '1'); // Reset to first page when changing per_page
+    window.location.search = urlParams.toString();
+  }
+
+  // Function to print all results (opens new window with all results)
+  function printAllResults() {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('print_all', '1'); // Add parameter to get all results
+    urlParams.delete('page'); // Remove page parameter
+    urlParams.delete('per_page'); // Remove per_page parameter
+    const printUrl = '?' + urlParams.toString();
+    const printWindow = window.open(printUrl, '_blank', 'width=1000,height=700,scrollbars=yes');
+    
+    // Auto-print when the window loads
+    printWindow.onload = function() {
+      setTimeout(function() {
+        printWindow.print();
+      }, 1000);
+    };
+  }
+
   // Keep hidden column inputs in sync with modal checkboxes before any form submit
   function syncColumnInputs() {
     const modal = document.getElementById('columnModal');
@@ -453,18 +509,46 @@
       mainForm.appendChild(input);
     });
   }
+  
+  // Reset page to 1 when applying new filters
+  function resetPageOnFilter() {
+    const pageInput = document.getElementById('page-input');
+    if (pageInput) {
+      pageInput.value = '1';
+    } else {
+      // Create hidden page input if it doesn't exist
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'page';
+      input.value = '1';
+      input.id = 'page-input';
+      document.getElementById('advanced-filter-form').appendChild(input);
+    }
+  }
+  
   document.addEventListener('DOMContentLoaded', function() {
-    // Attach to form submit
+    // Check if this is a print_all page
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('print_all')) {
+      // Auto-print after a short delay to allow content to load
+      setTimeout(function() {
+        window.print();
+      }, 1000);
+    }
+    
+    // Attach to form submit (reset page when applying filters)
     const mainForm = document.getElementById('advanced-filter-form');
     if (mainForm) {
       mainForm.addEventListener('submit', function(e) {
+        resetPageOnFilter(); // Reset to page 1 when applying new filters
         syncColumnInputs();
       });
     }
-    // Also update on Apply in modal (for instant feedback)
+    // Also update on Apply in modal (for instant feedback, but keep current page for column changes)
     const applyBtn = document.getElementById('apply-columns-btn');
     if (applyBtn) {
       applyBtn.addEventListener('click', function() {
+        // Don't reset page for column changes, just sync columns and submit
         syncColumnInputs();
         mainForm.submit();
       });
@@ -493,18 +577,45 @@
       <h4 class="mt-2 mb-0">Generated Report</h4>
     </div>
 
-    {% if equipments %}
-      <div class="d-flex justify-content-between align-items-center mb-3 no-print">
-        <h5 class="mb-0">Report Results</h5>
-        <div>
-          <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-success btn-sm">
-            <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
-          </a>
-          <button onclick="window.print()" class="btn btn-secondary btn-sm">
-            <i class="bi bi-printer"></i> Print
-          </button>
+    {% if equipments.object_list %}
+      {% if not request.GET.print_all %}
+        <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+          <h5 class="mb-0">Report Results ({{ page_obj.paginator.count }} total)</h5>
+          <div class="d-flex align-items-center gap-3">
+            <!-- Items per page selector -->
+            <div class="d-flex align-items-center">
+              <small class="text-muted me-2">Show:</small>
+              <select class="form-select form-select-sm" style="width: auto;" onchange="changePerPage(this.value)">
+                <option value="10" {% if request.GET.per_page == '10' %}selected{% endif %}>10</option>
+                <option value="25" {% if request.GET.per_page == '25' or not request.GET.per_page %}selected{% endif %}>25</option>
+                <option value="50" {% if request.GET.per_page == '50' %}selected{% endif %}>50</option>
+                <option value="100" {% if request.GET.per_page == '100' %}selected{% endif %}>100</option>
+              </select>
+              <small class="text-muted ms-2">per page</small>
+            </div>
+            
+            <div>
+              <a href="?{% url_replace request 'export' 'csv' %}" class="btn btn-success btn-sm">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Export CSV
+              </a>
+              <button onclick="printAllResults()" class="btn btn-secondary btn-sm">
+                <i class="bi bi-printer"></i> Print All
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      {% else %}
+        <!-- Print All Header -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0">Report Results - All {{ page_obj.paginator.count }} records</h5>
+          <div class="no-print">
+            <button onclick="window.print()" class="btn btn-primary btn-sm">
+              <i class="bi bi-printer"></i> Print Now
+            </button>
+            <button onclick="window.close()" class="btn btn-secondary btn-sm">Close</button>
+          </div>
+        </div>
+      {% endif %}
 
       {% if selected_columns %}
         <div class="table-responsive">
@@ -538,9 +649,64 @@
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Controls -->
+        {% if page_obj.has_other_pages and not request.GET.print_all %}
+          <nav aria-label="Report pagination" class="no-print">
+            <ul class="pagination pagination-sm justify-content-center mb-0">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?{% url_replace request 'page' 1 %}" aria-label="First">
+                    <span aria-hidden="true">&laquo;&laquo;</span>
+                  </a>
+                </li>
+                <li class="page-item">
+                  <a class="page-link" href="?{% url_replace request 'page' page_obj.previous_page_number %}" aria-label="Previous">
+                    <span aria-hidden="true">&laquo;</span>
+                  </a>
+                </li>
+              {% endif %}
+
+              {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                  <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                  </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                  <li class="page-item">
+                    <a class="page-link" href="?{% url_replace request 'page' num %}">{{ num }}</a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?{% url_replace request 'page' page_obj.next_page_number %}" aria-label="Next">
+                    <span aria-hidden="true">&raquo;</span>
+                  </a>
+                </li>
+                <li class="page-item">
+                  <a class="page-link" href="?{% url_replace request 'page' page_obj.paginator.num_pages %}" aria-label="Last">
+                    <span aria-hidden="true">&raquo;&raquo;</span>
+                  </a>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+
+          <!-- Page info -->
+          <div class="text-center mt-2 no-print">
+            <small class="text-muted">
+              Showing {{ page_obj.start_index }} - {{ page_obj.end_index }} of {{ page_obj.paginator.count }} results
+              (Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }})
+            </small>
+          </div>
+        {% endif %}
       {% else %}
         <p class="text-muted">Please select at least one column to display the report.</p>
       {% endif %}
+    {% elif page_obj.paginator.count == 0 %}
+      <p class="text-muted">No results found with the current filters.</p>
     {% else %}
       <p class="text-muted">No results found.</p>
     {% endif %}
