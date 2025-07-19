@@ -1589,11 +1589,17 @@ def generate_report(request):
     # User fields (FK): created_by, updated_by, emp, archived_by
     user_fk_fields = {'created_by', 'updated_by', 'emp', 'archived_by'}
 
+    # Group filters by column to handle OR logic for same column, AND logic between different columns
+    column_filters = {}
+    
     for col, op, val in zip(filter_columns, filter_operators, filter_values):
         if not col:
             continue
         if op in ['isnull', 'notnull']:
-            advanced_filters &= Q(**{f"{col}__isnull": op == 'isnull'})
+            # Handle null checks separately
+            if col not in column_filters:
+                column_filters[col] = []
+            column_filters[col].append(Q(**{f"{col}__isnull": op == 'isnull'}))
             continue
         if not val and op not in ['isnull', 'notnull']:
             continue
@@ -1641,9 +1647,22 @@ def generate_report(request):
             # Fallback: use icontains for unknown fields
             lookup = 'icontains'
             filter_key = col + (f'__{lookup}' if lookup != 'exact' else '')
-        # Compose filter
+        # Compose filter and group by column
         if lookup in ['exact', 'iexact', 'icontains', 'gt', 'lt', 'gte', 'lte']:
-            advanced_filters &= Q(**{filter_key: val_conv})
+            if col not in column_filters:
+                column_filters[col] = []
+            column_filters[col].append(Q(**{filter_key: val_conv}))
+    
+    # Combine filters: OR within same column, AND between different columns
+    for col, filters in column_filters.items():
+        if len(filters) == 1:
+            advanced_filters &= filters[0]
+        else:
+            # Multiple filters for same column - use OR
+            column_q = Q()
+            for f in filters:
+                column_q |= f
+            advanced_filters &= column_q
     if filter_columns:
         equipments = equipments.filter(advanced_filters)
 
@@ -1743,8 +1762,25 @@ def generate_report(request):
     # Get all categories for filter dropdown
     categories = Category.objects.all().order_by('name')
     statuses = Status.objects.all().order_by('name')
-    end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user='').values_list('end_user', flat=True).distinct()
-    assigned_to_list = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).distinct()
+    end_users = Equipment.objects.exclude(end_user__isnull=True).exclude(end_user='').values_list('end_user', flat=True).distinct().order_by('end_user')
+    assigned_to_list = Equipment.objects.exclude(assigned_to__isnull=True).exclude(assigned_to='').values_list('assigned_to', flat=True).distinct().order_by('assigned_to')
+    
+    # Additional dropdown options
+    project_names = Equipment.objects.exclude(project_name__isnull=True).exclude(project_name='').values_list('project_name', flat=True).distinct().order_by('project_name')
+    locations = Equipment.objects.exclude(location__isnull=True).exclude(location='').values_list('location', flat=True).distinct().order_by('location')
+    current_locations = Equipment.objects.exclude(current_location__isnull=True).exclude(current_location='').values_list('current_location', flat=True).distinct().order_by('current_location')
+    fund_sources = Equipment.objects.exclude(fund_source__isnull=True).exclude(fund_source='').values_list('fund_source', flat=True).distinct().order_by('fund_source')
+    suppliers = Equipment.objects.exclude(supplier__isnull=True).exclude(supplier='').values_list('supplier', flat=True).distinct().order_by('supplier')
+    return_conditions = Equipment.objects.exclude(return_condition__isnull=True).exclude(return_condition='').values_list('return_condition', flat=True).distinct().order_by('return_condition')
+    return_types = Equipment.objects.exclude(return_type__isnull=True).exclude(return_type='').values_list('return_type', flat=True).distinct().order_by('return_type')
+    returned_by_list = Equipment.objects.exclude(returned_by__isnull=True).exclude(returned_by='').values_list('returned_by', flat=True).distinct().order_by('returned_by')
+    received_by_list = Equipment.objects.exclude(received_by__isnull=True).exclude(received_by='').values_list('received_by', flat=True).distinct().order_by('received_by')
+    
+    # User-related dropdowns
+    employees = User.objects.filter(equipment__isnull=False).distinct().order_by('username')
+    created_by_users = User.objects.filter(equipment_created__isnull=False).distinct().order_by('username')
+    updated_by_users = User.objects.filter(equipment_updated__isnull=False).distinct().order_by('username')
+    archived_by_users = User.objects.filter(archived_equipments__isnull=False).distinct().order_by('username')
     context = {
         'form': form,
         'equipments': page_obj,  # Changed from equipments to page_obj
@@ -1756,5 +1792,19 @@ def generate_report(request):
         'statuses': statuses,
         'end_users': end_users,
         'assigned_to_list': assigned_to_list,
+        # Additional dropdown data
+        'project_names': project_names,
+        'locations': locations,
+        'current_locations': current_locations,
+        'fund_sources': fund_sources,
+        'suppliers': suppliers,
+        'return_conditions': return_conditions,
+        'return_types': return_types,
+        'returned_by_list': returned_by_list,
+        'received_by_list': received_by_list,
+        'employees': employees,
+        'created_by_users': created_by_users,
+        'updated_by_users': updated_by_users,
+        'archived_by_users': archived_by_users,
     }
     return render(request, 'reports/generate_report.html', context)

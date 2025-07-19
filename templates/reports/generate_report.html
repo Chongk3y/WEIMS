@@ -131,7 +131,9 @@
                 </div>
                 <div class="col-12 col-md-4">
                   <label class="form-label form-label-sm mb-1">Value</label>
-                  <input type="text" name="filter_value[]" class="form-control form-control-sm filter-value-input" value="{{ row.value|default:'' }}" {% if row.column in 'category status end_user assigned_to item_purdate created_at updated_at' %}style="display:none;"{% endif %} />
+                  <input type="text" name="filter_value[]" class="form-control form-control-sm filter-value-input" value="{{ row.value|default:'' }}" {% if row.column in 'category status end_user assigned_to project_name location current_location fund_source supplier return_condition return_type returned_by received_by emp created_by updated_by archived_by is_returned is_archived item_purdate created_at updated_at date_archived' %}style="display:none;"{% endif %} />
+                  
+                  <!-- Existing dropdowns -->
                   <select name="filter_value[]" class="form-select form-select-sm filter-value-select-category" {% if row.column != 'category' %}style="display:none;"{% endif %}>
                     <option value="">---------</option>
                     {% for cat in categories %}
@@ -156,6 +158,96 @@
                       <option value="{{ at }}" {% if row.value|stringformat:'s' == at|stringformat:'s' %}selected{% endif %}>{{ at }}</option>
                     {% endfor %}
                   </select>
+                  
+                  <!-- New dropdowns for additional fields -->
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-project" {% if row.column != 'project_name' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for pn in project_names %}
+                      <option value="{{ pn }}" {% if row.value|stringformat:'s' == pn|stringformat:'s' %}selected{% endif %}>{{ pn }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-location" {% if row.column != 'location' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for loc in locations %}
+                      <option value="{{ loc }}" {% if row.value|stringformat:'s' == loc|stringformat:'s' %}selected{% endif %}>{{ loc }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-currentlocation" {% if row.column != 'current_location' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for cl in current_locations %}
+                      <option value="{{ cl }}" {% if row.value|stringformat:'s' == cl|stringformat:'s' %}selected{% endif %}>{{ cl }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-fundsource" {% if row.column != 'fund_source' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for fs in fund_sources %}
+                      <option value="{{ fs }}" {% if row.value|stringformat:'s' == fs|stringformat:'s' %}selected{% endif %}>{{ fs }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-supplier" {% if row.column != 'supplier' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for sup in suppliers %}
+                      <option value="{{ sup }}" {% if row.value|stringformat:'s' == sup|stringformat:'s' %}selected{% endif %}>{{ sup }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-returncondition" {% if row.column != 'return_condition' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for rc in return_conditions %}
+                      <option value="{{ rc }}" {% if row.value|stringformat:'s' == rc|stringformat:'s' %}selected{% endif %}>{{ rc }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-returntype" {% if row.column != 'return_type' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for rt in return_types %}
+                      <option value="{{ rt }}" {% if row.value|stringformat:'s' == rt|stringformat:'s' %}selected{% endif %}>{{ rt }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-returnedby" {% if row.column != 'returned_by' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for rb in returned_by_list %}
+                      <option value="{{ rb }}" {% if row.value|stringformat:'s' == rb|stringformat:'s' %}selected{% endif %}>{{ rb }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-receivedby" {% if row.column != 'received_by' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for recb in received_by_list %}
+                      <option value="{{ recb }}" {% if row.value|stringformat:'s' == recb|stringformat:'s' %}selected{% endif %}>{{ recb }}</option>
+                    {% endfor %}
+                  </select>
+                  
+                  <!-- User-related dropdowns -->
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-emp" {% if row.column != 'emp' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for emp in employees %}
+                      <option value="{{ emp.pk }}" {% if row.value|stringformat:'s' == emp.pk|stringformat:'s' %}selected{% endif %}>{{ emp.username }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-createdby" {% if row.column != 'created_by' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for cb in created_by_users %}
+                      <option value="{{ cb.pk }}" {% if row.value|stringformat:'s' == cb.pk|stringformat:'s' %}selected{% endif %}>{{ cb.username }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-updatedby" {% if row.column != 'updated_by' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for ub in updated_by_users %}
+                      <option value="{{ ub.pk }}" {% if row.value|stringformat:'s' == ub.pk|stringformat:'s' %}selected{% endif %}>{{ ub.username }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-archivedby" {% if row.column != 'archived_by' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    {% for ab in archived_by_users %}
+                      <option value="{{ ab.pk }}" {% if row.value|stringformat:'s' == ab.pk|stringformat:'s' %}selected{% endif %}>{{ ab.username }}</option>
+                    {% endfor %}
+                  </select>
+                  
+                  <!-- Boolean dropdowns -->
+                  <select name="filter_value[]" class="form-select form-select-sm filter-value-select-boolean" {% if row.column not in 'is_returned is_archived' %}style="display:none;"{% endif %}>
+                    <option value="">---------</option>
+                    <option value="true" {% if row.value|stringformat:'s' == 'true' %}selected{% endif %}>Yes</option>
+                    <option value="false" {% if row.value|stringformat:'s' == 'false' %}selected{% endif %}>No</option>
+                  </select>
+                  
                   <input type="date" name="filter_value[]" class="form-control form-control-sm filter-value-date" value="{{ row.value|default:'' }}" {% if row.column not in 'item_purdate created_at updated_at date_archived' %}style="display:none;"{% endif %} />
                 </div>
                 <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
@@ -193,6 +285,8 @@
               <div class="col-12 col-md-4">
                 <label class="form-label form-label-sm mb-1">Value</label>
                 <input type="text" name="filter_value[]" class="form-control form-control-sm filter-value-input" />
+                
+                <!-- Existing dropdowns -->
                 <select name="filter_value[]" class="form-select form-select-sm filter-value-select-category" style="display:none;">
                   <option value="">---------</option>
                   {% for cat in categories %}
@@ -217,6 +311,96 @@
                     <option value="{{ at }}">{{ at }}</option>
                   {% endfor %}
                 </select>
+                
+                <!-- New dropdowns for additional fields -->
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-project" style="display:none;">
+                  <option value="">---------</option>
+                  {% for pn in project_names %}
+                    <option value="{{ pn }}">{{ pn }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-location" style="display:none;">
+                  <option value="">---------</option>
+                  {% for loc in locations %}
+                    <option value="{{ loc }}">{{ loc }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-currentlocation" style="display:none;">
+                  <option value="">---------</option>
+                  {% for cl in current_locations %}
+                    <option value="{{ cl }}">{{ cl }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-fundsource" style="display:none;">
+                  <option value="">---------</option>
+                  {% for fs in fund_sources %}
+                    <option value="{{ fs }}">{{ fs }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-supplier" style="display:none;">
+                  <option value="">---------</option>
+                  {% for sup in suppliers %}
+                    <option value="{{ sup }}">{{ sup }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-returncondition" style="display:none;">
+                  <option value="">---------</option>
+                  {% for rc in return_conditions %}
+                    <option value="{{ rc }}">{{ rc }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-returntype" style="display:none;">
+                  <option value="">---------</option>
+                  {% for rt in return_types %}
+                    <option value="{{ rt }}">{{ rt }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-returnedby" style="display:none;">
+                  <option value="">---------</option>
+                  {% for rb in returned_by_list %}
+                    <option value="{{ rb }}">{{ rb }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-receivedby" style="display:none;">
+                  <option value="">---------</option>
+                  {% for recb in received_by_list %}
+                    <option value="{{ recb }}">{{ recb }}</option>
+                  {% endfor %}
+                </select>
+                
+                <!-- User-related dropdowns -->
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-emp" style="display:none;">
+                  <option value="">---------</option>
+                  {% for emp in employees %}
+                    <option value="{{ emp.pk }}">{{ emp.username }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-createdby" style="display:none;">
+                  <option value="">---------</option>
+                  {% for cb in created_by_users %}
+                    <option value="{{ cb.pk }}">{{ cb.username }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-updatedby" style="display:none;">
+                  <option value="">---------</option>
+                  {% for ub in updated_by_users %}
+                    <option value="{{ ub.pk }}">{{ ub.username }}</option>
+                  {% endfor %}
+                </select>
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-archivedby" style="display:none;">
+                  <option value="">---------</option>
+                  {% for ab in archived_by_users %}
+                    <option value="{{ ab.pk }}">{{ ab.username }}</option>
+                  {% endfor %}
+                </select>
+                
+                <!-- Boolean dropdowns -->
+                <select name="filter_value[]" class="form-select form-select-sm filter-value-select-boolean" style="display:none;">
+                  <option value="">---------</option>
+                  <option value="true">Yes</option>
+                  <option value="false">No</option>
+                </select>
+                
                 <input type="date" name="filter_value[]" class="form-control form-control-sm filter-value-date" style="display:none;" />
               </div>
               <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
@@ -254,6 +438,8 @@
             <div class="col-12 col-md-4">
               <label class="form-label form-label-sm mb-1">Value</label>
               <input type="text" class="form-control form-control-sm filter-value-input" />
+              
+              <!-- Existing dropdowns -->
               <select class="form-select form-select-sm filter-value-select-category" style="display:none;">
                 <option value="">---------</option>
                 {% for cat in categories %}
@@ -278,6 +464,96 @@
                   <option value="{{ at }}">{{ at }}</option>
                 {% endfor %}
               </select>
+              
+              <!-- New dropdowns for additional fields -->
+              <select class="form-select form-select-sm filter-value-select-project" style="display:none;">
+                <option value="">---------</option>
+                {% for pn in project_names %}
+                  <option value="{{ pn }}">{{ pn }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-location" style="display:none;">
+                <option value="">---------</option>
+                {% for loc in locations %}
+                  <option value="{{ loc }}">{{ loc }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-currentlocation" style="display:none;">
+                <option value="">---------</option>
+                {% for cl in current_locations %}
+                  <option value="{{ cl }}">{{ cl }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-fundsource" style="display:none;">
+                <option value="">---------</option>
+                {% for fs in fund_sources %}
+                  <option value="{{ fs }}">{{ fs }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-supplier" style="display:none;">
+                <option value="">---------</option>
+                {% for sup in suppliers %}
+                  <option value="{{ sup }}">{{ sup }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-returncondition" style="display:none;">
+                <option value="">---------</option>
+                {% for rc in return_conditions %}
+                  <option value="{{ rc }}">{{ rc }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-returntype" style="display:none;">
+                <option value="">---------</option>
+                {% for rt in return_types %}
+                  <option value="{{ rt }}">{{ rt }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-returnedby" style="display:none;">
+                <option value="">---------</option>
+                {% for rb in returned_by_list %}
+                  <option value="{{ rb }}">{{ rb }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-receivedby" style="display:none;">
+                <option value="">---------</option>
+                {% for recb in received_by_list %}
+                  <option value="{{ recb }}">{{ recb }}</option>
+                {% endfor %}
+              </select>
+              
+              <!-- User-related dropdowns -->
+              <select class="form-select form-select-sm filter-value-select-emp" style="display:none;">
+                <option value="">---------</option>
+                {% for emp in employees %}
+                  <option value="{{ emp.pk }}">{{ emp.username }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-createdby" style="display:none;">
+                <option value="">---------</option>
+                {% for cb in created_by_users %}
+                  <option value="{{ cb.pk }}">{{ cb.username }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-updatedby" style="display:none;">
+                <option value="">---------</option>
+                {% for ub in updated_by_users %}
+                  <option value="{{ ub.pk }}">{{ ub.username }}</option>
+                {% endfor %}
+              </select>
+              <select class="form-select form-select-sm filter-value-select-archivedby" style="display:none;">
+                <option value="">---------</option>
+                {% for ab in archived_by_users %}
+                  <option value="{{ ab.pk }}">{{ ab.username }}</option>
+                {% endfor %}
+              </select>
+              
+              <!-- Boolean dropdowns -->
+              <select class="form-select form-select-sm filter-value-select-boolean" style="display:none;">
+                <option value="">---------</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+              
               <input type="date" class="form-control form-control-sm filter-value-date" style="display:none;" />
             </div>
             <div class="col-12 col-md-2 d-flex align-items-center gap-1 mt-2 mt-md-0">
@@ -311,28 +587,115 @@
             const valueSelectStatus = row.querySelector('.filter-value-select-status');
             const valueSelectEndUser = row.querySelector('.filter-value-select-enduser');
             const valueSelectAssignedTo = row.querySelector('.filter-value-select-assignedto');
+            const valueSelectProject = row.querySelector('.filter-value-select-project');
+            const valueSelectLocation = row.querySelector('.filter-value-select-location');
+            const valueSelectCurrentLocation = row.querySelector('.filter-value-select-currentlocation');
+            const valueSelectFundSource = row.querySelector('.filter-value-select-fundsource');
+            const valueSelectSupplier = row.querySelector('.filter-value-select-supplier');
+            const valueSelectReturnCondition = row.querySelector('.filter-value-select-returncondition');
+            const valueSelectReturnType = row.querySelector('.filter-value-select-returntype');
+            const valueSelectReturnedBy = row.querySelector('.filter-value-select-returnedby');
+            const valueSelectReceivedBy = row.querySelector('.filter-value-select-receivedby');
+            const valueSelectEmp = row.querySelector('.filter-value-select-emp');
+            const valueSelectCreatedBy = row.querySelector('.filter-value-select-createdby');
+            const valueSelectUpdatedBy = row.querySelector('.filter-value-select-updatedby');
+            const valueSelectArchivedBy = row.querySelector('.filter-value-select-archivedby');
+            const valueSelectBoolean = row.querySelector('.filter-value-select-boolean');
             const valueDate = row.querySelector('.filter-value-date');
+            
             if (!colSelect) return;
-            // Hide all value fields
-            if (valueInput) { valueInput.style.display = 'none'; valueInput.name = ''; }
-            if (valueSelectCategory) { valueSelectCategory.style.display = 'none'; valueSelectCategory.name = ''; }
-            if (valueSelectStatus) { valueSelectStatus.style.display = 'none'; valueSelectStatus.name = ''; }
-            if (valueSelectEndUser) { valueSelectEndUser.style.display = 'none'; valueSelectEndUser.name = ''; }
-            if (valueSelectAssignedTo) { valueSelectAssignedTo.style.display = 'none'; valueSelectAssignedTo.name = ''; }
-            if (valueDate) { valueDate.style.display = 'none'; valueDate.name = ''; }
-            // Show the correct value field
-            if (colSelect.value === 'category') {
-              if (valueSelectCategory) { valueSelectCategory.style.display = ''; valueSelectCategory.name = 'filter_value[]'; }
-            } else if (colSelect.value === 'status') {
-              if (valueSelectStatus) { valueSelectStatus.style.display = ''; valueSelectStatus.name = 'filter_value[]'; }
-            } else if (colSelect.value === 'end_user') {
-              if (valueSelectEndUser) { valueSelectEndUser.style.display = ''; valueSelectEndUser.name = 'filter_value[]'; }
-            } else if (colSelect.value === 'assigned_to') {
-              if (valueSelectAssignedTo) { valueSelectAssignedTo.style.display = ''; valueSelectAssignedTo.name = 'filter_value[]'; }
-            } else if (['item_purdate', 'created_at', 'updated_at', 'date_archived'].includes(colSelect.value)) {
-              if (valueDate) { valueDate.style.display = ''; valueDate.name = 'filter_value[]'; }
-            } else {
-              if (valueInput) { valueInput.style.display = ''; valueInput.name = 'filter_value[]'; }
+            
+            // Hide all value fields and clear their names
+            const allFields = [
+              valueInput, valueSelectCategory, valueSelectStatus, valueSelectEndUser, valueSelectAssignedTo,
+              valueSelectProject, valueSelectLocation, valueSelectCurrentLocation, valueSelectFundSource,
+              valueSelectSupplier, valueSelectReturnCondition, valueSelectReturnType, valueSelectReturnedBy,
+              valueSelectReceivedBy, valueSelectEmp, valueSelectCreatedBy, valueSelectUpdatedBy,
+              valueSelectArchivedBy, valueSelectBoolean, valueDate
+            ];
+            
+            allFields.forEach(field => {
+              if (field) {
+                field.style.display = 'none';
+                field.name = '';
+              }
+            });
+            
+            // Show the correct value field based on selected column
+            const selectedColumn = colSelect.value;
+            let activeField = null;
+            
+            switch (selectedColumn) {
+              case 'category':
+                activeField = valueSelectCategory;
+                break;
+              case 'status':
+                activeField = valueSelectStatus;
+                break;
+              case 'end_user':
+                activeField = valueSelectEndUser;
+                break;
+              case 'assigned_to':
+                activeField = valueSelectAssignedTo;
+                break;
+              case 'project_name':
+                activeField = valueSelectProject;
+                break;
+              case 'location':
+                activeField = valueSelectLocation;
+                break;
+              case 'current_location':
+                activeField = valueSelectCurrentLocation;
+                break;
+              case 'fund_source':
+                activeField = valueSelectFundSource;
+                break;
+              case 'supplier':
+                activeField = valueSelectSupplier;
+                break;
+              case 'return_condition':
+                activeField = valueSelectReturnCondition;
+                break;
+              case 'return_type':
+                activeField = valueSelectReturnType;
+                break;
+              case 'returned_by':
+                activeField = valueSelectReturnedBy;
+                break;
+              case 'received_by':
+                activeField = valueSelectReceivedBy;
+                break;
+              case 'emp':
+                activeField = valueSelectEmp;
+                break;
+              case 'created_by':
+                activeField = valueSelectCreatedBy;
+                break;
+              case 'updated_by':
+                activeField = valueSelectUpdatedBy;
+                break;
+              case 'archived_by':
+                activeField = valueSelectArchivedBy;
+                break;
+              case 'is_returned':
+              case 'is_archived':
+                activeField = valueSelectBoolean;
+                break;
+              case 'item_purdate':
+              case 'created_at':
+              case 'updated_at':
+              case 'date_archived':
+                activeField = valueDate;
+                break;
+              default:
+                activeField = valueInput;
+                break;
+            }
+            
+            // Show and activate the selected field
+            if (activeField) {
+              activeField.style.display = '';
+              activeField.name = 'filter_value[]';
             }
           }
 
@@ -345,7 +708,24 @@
             newRow.querySelectorAll('select').forEach((el) => {
               if (el.classList.contains('filter-column-select')) {
                 el.name = 'filter_column[]';
-              } else if (el.classList.contains('filter-value-select-category') || el.classList.contains('filter-value-select-status') || el.classList.contains('filter-value-select-enduser') || el.classList.contains('filter-value-select-assignedto')) {
+              } else if (el.classList.contains('filter-value-select-category') || 
+                         el.classList.contains('filter-value-select-status') || 
+                         el.classList.contains('filter-value-select-enduser') || 
+                         el.classList.contains('filter-value-select-assignedto') ||
+                         el.classList.contains('filter-value-select-project') ||
+                         el.classList.contains('filter-value-select-location') ||
+                         el.classList.contains('filter-value-select-currentlocation') ||
+                         el.classList.contains('filter-value-select-fundsource') ||
+                         el.classList.contains('filter-value-select-supplier') ||
+                         el.classList.contains('filter-value-select-returncondition') ||
+                         el.classList.contains('filter-value-select-returntype') ||
+                         el.classList.contains('filter-value-select-returnedby') ||
+                         el.classList.contains('filter-value-select-receivedby') ||
+                         el.classList.contains('filter-value-select-emp') ||
+                         el.classList.contains('filter-value-select-createdby') ||
+                         el.classList.contains('filter-value-select-updatedby') ||
+                         el.classList.contains('filter-value-select-archivedby') ||
+                         el.classList.contains('filter-value-select-boolean')) {
                 el.name = '';
               } else {
                 el.name = 'filter_operator[]';
@@ -396,7 +776,7 @@
           updateRemoveButtons();
         });
       </script>
-      <small class="text-muted">Add multiple filter conditions as needed. Filters are combined with AND.</small>
+      <small class="text-muted">Add multiple filter conditions as needed. Filters on different columns are combined with AND. Multiple filters on the same column are combined with OR.</small>
     </div>
   </div>
   {% endif %}
