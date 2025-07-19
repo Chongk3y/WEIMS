@@ -104,6 +104,7 @@ class Equipment(models.Model):
     returned_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Returned By")
     received_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Received By")
     damage_reason = models.TextField(blank=True, null=True, verbose_name="Damage Reason")
+    lost_remarks = models.TextField(blank=True, null=True, verbose_name="Lost Remarks")
     is_archived = models.BooleanField(default=False)
     date_archived = models.DateTimeField(null=True, blank=True)
     archived_by = models.ForeignKey(
@@ -176,6 +177,20 @@ class ReturnDocument(models.Model):
     class Meta:
         verbose_name = "Return Document"
         verbose_name_plural = "Return Documents"
+
+class ReplacementDocument(models.Model):
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='replacement_documents')
+    document = models.FileField(upload_to='replacement_docs/', verbose_name="Replacement Document")
+    original_filename = models.CharField(max_length=255, blank=True, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"Replacement document for {self.equipment.item_name} - {self.original_filename}"
+
+    class Meta:
+        verbose_name = "Replacement Document"
+        verbose_name_plural = "Replacement Documents"
 
 class ReportTemplate(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

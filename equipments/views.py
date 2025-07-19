@@ -25,7 +25,7 @@ from .models import Equipment, Category, Status
 from .models import EquipmentHistory
 from .models import EquipmentActionLog
 from .models import ReportTemplate
-from .models import ReturnDocument
+from .models import ReturnDocument, ReplacementDocument
 from .forms import ReportFilterForm
 from .helpers import (
     is_admin,
@@ -247,6 +247,7 @@ def equipment_detail_json(request, pk):
         "category": eq.category.name if eq.category and eq.category.name else "None",
         "status": eq.status.name if eq.status and eq.status.name else "None",
         "damage_reason": eq.damage_reason if eq.damage_reason not in (None, '') else "None",
+        "lost_remarks": eq.lost_remarks if eq.lost_remarks not in (None, '') else "None",
         "po_number": eq.po_number if eq.po_number not in (None, '') else "None",
         "fund_source": eq.fund_source if eq.fund_source not in (None, '') else "None",
         "supplier": eq.supplier if eq.supplier not in (None, '') else "None",
@@ -466,6 +467,7 @@ def edit_equipment(request, id):
             'category_id': equipment.category_id,
             'status_id': equipment.status_id,
             'damage_reason': equipment.damage_reason,
+            'lost_remarks': equipment.lost_remarks,
         }
 
         equipment.item_propertynum = request.POST.get('item_propertynum')
@@ -494,16 +496,23 @@ def edit_equipment(request, id):
         equipment.status_id = request.POST.get('status_id')
         
         # Handle damage reason - only save if status is "Damaged"
+        # Handle lost remarks - only save if status is "Lost"
         status_id = request.POST.get('status_id')
         if status_id:
             try:
                 selected_status = Status.objects.get(id=status_id)
                 if selected_status.name == 'Damaged':
                     equipment.damage_reason = request.POST.get('damage_reason', '').strip()
+                    equipment.lost_remarks = None  # Clear lost remarks if not lost
+                elif selected_status.name == 'Lost':
+                    equipment.lost_remarks = request.POST.get('lost_remarks', '').strip()
+                    equipment.damage_reason = None  # Clear damage reason if not damaged
                 else:
-                    equipment.damage_reason = None  # Clear if not damaged
+                    equipment.damage_reason = None  # Clear if neither damaged nor lost
+                    equipment.lost_remarks = None
             except Status.DoesNotExist:
                 equipment.damage_reason = None
+                equipment.lost_remarks = None
         
         equipment.updated_by = request.user
 
@@ -512,6 +521,23 @@ def edit_equipment(request, id):
 
         # Save equipment first
         equipment.save()
+        
+        # Handle replacement documents if status is "Lost"
+        replacement_files = request.FILES.getlist('replacement_documents')
+        if replacement_files and status_id:
+            try:
+                selected_status = Status.objects.get(id=status_id)
+                if selected_status.name == 'Lost':
+                    for file in replacement_files:
+                        ReplacementDocument.objects.create(
+                            equipment=equipment,
+                            document=file,
+                            original_filename=file.name,
+                            uploaded_by=request.user
+                        )
+            except Status.DoesNotExist:
+                pass
+        
         EquipmentActionLog.objects.create(
             equipment=equipment,
             action='edit',
@@ -535,6 +561,7 @@ def edit_equipment(request, id):
             'category_id': 'Category',
             'status_id': 'Status',
             'damage_reason': 'Damage Reason',
+            'lost_remarks': 'Lost Remarks',
         }
         for field, old in original.items():
             new = getattr(equipment, field)

@@ -235,6 +235,7 @@
               <div class="col-sm-6"><small class="text-muted">Category</small><div id="modalCategory"></div></div>
               <div class="col-sm-6"><small class="text-muted">Status</small><div id="modalStatus"></div></div>
               <div class="col-sm-12" id="modalDamageReasonRow" style="display: none;"><small class="text-muted">Damage Reason</small><div id="modalDamageReason" class="fw-normal text-wrap text-danger"></div></div>
+              <div class="col-sm-12" id="modalLostRemarksRow" style="display: none;"><small class="text-muted">Lost Remarks</small><div id="modalLostRemarks" class="fw-normal text-wrap text-warning"></div></div>
               <div class="col-sm-6"><small class="text-muted">PO Number</small><div id="modalPONumber"></div></div>
               <div class="col-sm-6"><small class="text-muted">PO Date</small><div id="modalPODate"></div></div>
               <div class="col-sm-6"><small class="text-muted">Fund Source</small><div id="modalFundSource"></div></div>
@@ -673,6 +674,14 @@ $(document).on('change', '.column-select', function () {
           $('#modalDamageReasonRow').show();
         } else {
           $('#modalDamageReasonRow').hide();
+        }
+        
+        // Show/hide lost remarks based on status
+        if (data.status === 'Lost' && data.lost_remarks !== 'None') {
+          $('#modalLostRemarks').text(data.lost_remarks);
+          $('#modalLostRemarksRow').show();
+        } else {
+          $('#modalLostRemarksRow').hide();
         }
         
         $('#modalPONumber').text(data.po_number);
