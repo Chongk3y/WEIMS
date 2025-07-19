@@ -22,28 +22,43 @@
   </div>
 
   <!-- BULK ACTIONS GROUP -->
-  <div class="col-md-auto">
+  {% if is_admin or is_encoder %}
+  <div class="col-12 col-md-auto">
     <form id="bulkUpdateForm" method="post" action="{% url 'equipments:bulk_update' %}">
       {% csrf_token %}
-      <div class="input-group input-group-sm flex-nowrap align-items-center">
-        <select name="status_id" class="form-select form-select-sm" style="min-width: 140px;">
-          <option value="">Change Status...</option>
-          {% for status in statuses %}
-            <option value="{{ status.id }}">{{ status.name }}</option>
-          {% endfor %}
-        </select>
-        <select name="category_id" class="form-select form-select-sm" style="min-width: 140px;">
-          <option value="">Change Category...</option>
-          {% for category in categories %}
-            <option value="{{ category.id }}">{{ category.name }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-outline-primary btn-sm ms-1">
-          Apply to Selected
-        </button>
+      <div class="row gy-2 gx-2 align-items-center">
+        
+        <!-- Status Select -->
+        <div class="col-12 col-sm-auto">
+          <select name="status_id" class="form-select form-select-sm w-100" style="min-width: 140px;">
+            <option value="">Change Status...</option>
+            {% for status in statuses %}
+              <option value="{{ status.id }}">{{ status.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <!-- Category Select -->
+        <div class="col-12 col-sm-auto">
+          <select name="category_id" class="form-select form-select-sm w-100" style="min-width: 140px;">
+            <option value="">Change Category...</option>
+            {% for category in categories %}
+              <option value="{{ category.id }}">{{ category.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <!-- Apply Button -->
+        <div class="col-12 col-sm-auto">
+          <button type="submit" class="btn btn-outline-primary btn-sm w-100 w-sm-auto">
+            Apply to Selected
+          </button>
+        </div>
+
       </div>
     </form>
   </div>
+  {% endif %}
 
   <!-- FILTER & ORDERING TOOLS -->
   <div class="col-md-auto d-flex flex-wrap gap-2">

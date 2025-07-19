@@ -9,6 +9,9 @@ html, body {
   padding: 0;
   font-family: Arial, sans-serif;
   background-color: #f8f9fa;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .sidebar-nav {
@@ -209,6 +212,9 @@ a[aria-expanded="true"] .submenu-arrow {
 /* =================================================================== */
 
 .navbar-mobile-themed {
+  width: 100% !important;
+  padding-left: 1rem;
+  padding-right: 1rem;
   background-color: #0e4a39; /* The same dark green as your sidebar */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }

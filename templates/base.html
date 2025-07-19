@@ -29,8 +29,8 @@
   <body>
 
     <!-- This is the mobile-only header with the burger button. -->
-  <nav class="navbar navbar-dark navbar-mobile-themed d-lg-none sticky-top">
-    <div class="container-fluid">
+<nav class="navbar navbar-dark navbar-mobile-themed d-lg-none sticky-top w-100">
+  <div class="container-fluid w-100 d-flex justify-content-between align-items-center">
       <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-controls="mobileSidebar">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -43,7 +43,7 @@
   </nav>
     
     <!-- This is the main layout wrapper. It has two direct children: the sidebar and the main content. -->
-    <div class="wrapper d-flex min-vh-100" id="wrapper"> 
+  <div class="wrapper d-flex flex-column flex-lg-row min-vh-100" id="wrapper">
       
       <!-- CHILD 1: The Sidebar -->
       <div class="offcanvas offcanvas-start sidebar-nav" tabindex="-1" id="mobileSidebar" aria-labelledby="mobileSidebarLabel">
