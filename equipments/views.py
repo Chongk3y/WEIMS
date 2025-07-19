@@ -25,6 +25,7 @@ from .models import Equipment, Category, Status
 from .models import EquipmentHistory
 from .models import EquipmentActionLog
 from .models import ReportTemplate
+from .models import ReturnDocument
 from .forms import ReportFilterForm
 from .helpers import (
     is_admin,
@@ -562,6 +563,10 @@ def delete_equipment(request, id):
     equipment = get_object_or_404(Equipment, id=id)
     item_name = equipment.item_name
     item_propertynum = equipment.item_propertynum
+    
+    # Check if equipment was returned (for redirect purposes)
+    was_returned = equipment.is_returned
+    
     # Log the delete action before deleting equipment and logs
     EquipmentActionLog.objects.create(
         equipment=equipment,
@@ -569,10 +574,20 @@ def delete_equipment(request, id):
         user=request.user,
         summary=f"Deleted equipment: {item_name} (Property #: {item_propertynum})"
     )
-    # Delete related action logs
+    
+    # Delete related action logs and return documents
     EquipmentActionLog.objects.filter(equipment_id=equipment.id).delete()
+    ReturnDocument.objects.filter(equipment_id=equipment.id).delete()
     equipment.delete()
-    return redirect('equipments:index')
+    
+    messages.success(request, f"Equipment '{item_name}' has been permanently deleted.")
+    
+    # Redirect back to appropriate page based on where the user came from
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'returned' in referer or was_returned:
+        return redirect('equipments:returned')
+    else:
+        return redirect('equipments:index')
 
 
 @login_required
@@ -912,7 +927,13 @@ def bulk_update_equipment(request):
 @role_required_with_feedback(is_viewer_or_above)
 def returned(request):
     equipments = Equipment.objects.filter(is_returned=True)
-    return render(request, 'equipments/returned.html', {'equipments': equipments})
+    total_returned = equipments.count()
+    return render(request, 'equipments/returned.html', {
+        'equipments': equipments,
+        'total_returned': total_returned,
+        'is_admin': is_admin(request.user),
+        'is_superadmin': is_superadmin(request.user),
+    })
 
 @login_required
 @role_required_with_feedback(is_viewer_or_above)
@@ -949,6 +970,54 @@ def returned_equipment_table_json(request):
 
     data = []
     for eq in equipments:
+        # Get all return documents for this equipment
+        return_docs = ReturnDocument.objects.filter(equipment=eq).order_by('-uploaded_at')
+        
+        # Create document data structure
+        documents_data = []
+        if return_docs.exists():
+            for doc in return_docs:
+                documents_data.append({
+                    'url': doc.document.url,
+                    'filename': doc.original_filename or doc.document.name.split('/')[-1],
+                    'uploaded_at': doc.uploaded_at.strftime("%b %d, %Y %H:%M")
+                })
+        elif eq.return_document:  # Fallback to old single document field
+            documents_data.append({
+                'url': eq.return_document.url,
+                'filename': eq.return_document.name.split('/')[-1],
+                'uploaded_at': 'Legacy'
+            })
+        
+        # Action buttons for admin/superadmin only
+        actions = ''
+        if is_admin(request.user) or is_superadmin(request.user):
+            actions = f'''
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Actions
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <a class="dropdown-item text-success" href="/equipments/reissue/{eq.id}/" onclick="return confirm('Reissue this equipment? It will be moved back to active inventory.');">
+                            <i class="bi bi-arrow-repeat"></i> Reissue
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="/equipments/edit/{eq.id}/">
+                            <i class="bi bi-pencil-square"></i> Edit
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item text-danger" href="/equipments/delete/{eq.id}/" onclick="return confirm('Are you sure you want to permanently delete this equipment? This action cannot be undone.');">
+                            <i class="bi bi-trash"></i> Delete
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            '''
+        
         data.append([
             eq.id,
             f'<img src="{eq.user_image.url if eq.user_image else ""}" class="img-thumbnail" style="width:32px;height:32px;object-fit:cover;">',
@@ -956,12 +1025,13 @@ def returned_equipment_table_json(request):
             eq.item_name,
             eq.item_desc or 'None',
             eq.returned_by or 'None',
-            f'<a href="{eq.return_document.url}" target="_blank">View</a>' if eq.return_document else 'None',
+            json.dumps(documents_data),  # Pass documents as JSON
             eq.updated_at.strftime("%b %d, %Y") if eq.updated_at else 'None',
             eq.return_remarks or 'None',
             eq.return_condition or 'None',
             eq.return_type or 'None',
-            eq.received_by or 'None'
+            eq.received_by or 'None',
+            actions  # Add actions column
         ])
 
     return JsonResponse({
@@ -976,25 +1046,48 @@ def returned_equipment_table_json(request):
 @role_required_with_feedback(is_viewer_or_above)
 def return_equipment(request):
     eq_id = request.POST.get('equipment_id')
-    file = request.FILES.get('return_document')
+    files = request.FILES.getlist('return_document')  # Get multiple files
     remarks = request.POST.get('return_remarks')
     condition = request.POST.get('return_condition')
     return_type = request.POST.get('return_type')
     returned_by = request.POST.get('returned_by') 
     received_by = request.POST.get('received_by')
-    if not eq_id or not file:
-        messages.error(request, "Equipment and document are required.")
+    
+    if not eq_id or not files:
+        messages.error(request, "Equipment and at least one document are required.")
         return redirect('equipments:index')
+    
     eq = get_object_or_404(Equipment, id=eq_id)
     eq.is_returned = True
-    eq.return_document = file
+    
+    # Keep the first file in the original field for backward compatibility
+    if files:
+        eq.return_document = files[0]
+    
     eq.return_remarks = remarks
     eq.return_condition = condition
     eq.return_type = return_type
     eq.returned_by = returned_by
     eq.received_by = received_by
     eq.save()
-    messages.success(request, "Equipment marked as returned.")
+    
+    # Save all files to the new ReturnDocument model
+    for file in files:
+        ReturnDocument.objects.create(
+            equipment=eq,
+            document=file,
+            original_filename=file.name,
+            uploaded_by=request.user
+        )
+    
+    EquipmentActionLog.objects.create(
+        equipment=eq,
+        action='return',
+        user=request.user,
+        summary=f"Returned equipment: {eq.item_name} (Property #: {eq.item_propertynum}) with {len(files)} document(s)"
+    )
+    
+    messages.success(request, f"Equipment marked as returned with {len(files)} document(s).")
     return redirect('equipments:index')
 
 @login_required
@@ -1006,17 +1099,26 @@ def archived_equipments(request):
 @role_required_with_feedback(is_viewer_or_above)
 def archive_equipment(request, pk):
     equipment = get_object_or_404(Equipment, pk=pk)
+    
+    # Check if the request is coming from returned equipment page
+    referer = request.META.get('HTTP_REFERER', '')
+    if 'returned' in referer or equipment.is_returned:
+        messages.error(request, "Cannot archive returned equipment from this page. Please use the delete option instead.")
+        return redirect('equipments:returned')
+    
     equipment.is_archived = True
     equipment.date_archived = timezone.now()
     equipment.archived_by = request.user
     equipment.save()
     EquipmentActionLog.objects.create(
-    equipment=equipment,
-    action='archive',
-    user=request.user,
-    summary=f"Archived equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
-)
+        equipment=equipment,
+        action='archive',
+        user=request.user,
+        summary=f"Archived equipment: {equipment.item_name} (Property #: {equipment.item_propertynum})"
+    )
     messages.success(request, "Equipment sent to archive.")
+    
+    # Redirect back to appropriate page based on where the user came from
     return redirect('equipments:index')
 
 @login_required
@@ -1098,6 +1200,48 @@ def unarchive_equipment(request, pk):
     summary=f"Unarchived equipment: {eq.item_name} (Property #: {eq.item_propertynum})"
 )
     return redirect('equipments:archived_equipments')
+
+@login_required
+@user_passes_test(is_admin_or_superadmin)
+def reissue_equipment(request, pk):
+    equipment = get_object_or_404(Equipment, pk=pk)
+    
+    if not equipment.is_returned:
+        messages.error(request, "This equipment is not in returned status.")
+        return redirect('equipments:returned')
+    
+    # Reset return status and related fields
+    equipment.is_returned = False
+    equipment.return_document = None  # Clear the single document field
+    equipment.return_remarks = None
+    equipment.return_condition = None
+    equipment.return_type = None
+    equipment.returned_by = None
+    equipment.received_by = None
+    
+    # Set status back to Active (assuming status ID 1 is Active)
+    try:
+        active_status = Status.objects.get(name__iexact='Active')
+        equipment.status = active_status
+    except Status.DoesNotExist:
+        # Fallback to first available status
+        equipment.status = Status.objects.first()
+    
+    equipment.updated_by = request.user
+    equipment.save()
+    
+    # Keep return documents in ReturnDocument model for historical purposes
+    # Don't delete them - they serve as audit trail
+    
+    EquipmentActionLog.objects.create(
+        equipment=equipment,
+        action='reissue',
+        user=request.user,
+        summary=f"Reissued equipment: {equipment.item_name} (Property #: {equipment.item_propertynum}) - returned to active circulation"
+    )
+    
+    messages.success(request, f"Equipment '{equipment.item_name}' has been reissued and is now available for assignment.")
+    return redirect('equipments:returned')
 
 @login_required
 @role_required_with_feedback(is_viewer_or_above)

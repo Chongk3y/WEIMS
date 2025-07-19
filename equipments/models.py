@@ -149,6 +149,8 @@ class EquipmentActionLog(models.Model):
         ('delete', 'Deleted'),
         ('archive', 'Archived'),
         ('unarchive', 'Unarchived'),
+        ('return', 'Returned'),
+        ('reissue', 'Reissued'),
         # Add more as needed
     ]
     equipment = models.ForeignKey('Equipment', on_delete=models.SET_NULL, null=True, blank=True)
@@ -159,6 +161,20 @@ class EquipmentActionLog(models.Model):
 
     def __str__(self):
         return f"{self.get_action_display()} by {self.user} on {self.timestamp.strftime('%Y-%m-%d %H:%M:%S')}"
+
+class ReturnDocument(models.Model):
+    equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name='return_documents')
+    document = models.FileField(upload_to='return_docs/', verbose_name="Return Document")
+    original_filename = models.CharField(max_length=255, blank=True, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"Return document for {self.equipment.item_name} - {self.original_filename}"
+
+    class Meta:
+        verbose_name = "Return Document"
+        verbose_name_plural = "Return Documents"
 
 class ReportTemplate(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

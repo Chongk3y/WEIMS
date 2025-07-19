@@ -30,6 +30,7 @@ urlpatterns = [
     path('returned/', views.returned, name='returned'),
     path('return-equipment/', views.return_equipment, name='return_equipment'),
     path('returned/json/', views.returned_equipment_table_json, name='returned_equipment_table_json'),
+    path('reissue/<int:pk>/', views.reissue_equipment, name='reissue_equipment'),
     path('archive/<int:pk>/', views.archive_equipment, name='archive_equipment'),
     path('archived/', views.archived_equipments, name='archived_equipments'),
     path('archived/json/', views.archived_equipment_table_json, name='archived_equipment_table_json'),

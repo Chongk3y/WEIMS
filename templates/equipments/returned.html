@@ -1,17 +1,74 @@
 {% extends 'base.html' %}
 {% load humanize %}
+
+{% block custom_css %}
+<!-- Additional responsive styles -->
+<style>
+  /* Responsive improvements */
+  .table-responsive {
+    overflow-x: visible;
+  }
+  
+  /* Mobile-first column styling */
+  @media (max-width: 768px) {
+    .card-body {
+      padding: 1rem !important;
+    }
+    
+    /* Make action buttons stack vertically on mobile */
+    .btn-group-vertical {
+      width: 100%;
+    }
+    
+    .btn-group-vertical .btn {
+      margin-bottom: 0.25rem;
+    }
+  }
+  
+  /* Custom responsive styles for DataTables */
+  table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control {
+    position: relative;
+  }
+  
+  table.dataTable.dtr-inline.collapsed > tbody > tr > td.dtr-control:before {
+    background-color: #198754;
+    color: white;
+  }
+  
+  /* Improve mobile view of document buttons */
+  @media (max-width: 576px) {
+    .btn-group-vertical .btn {
+      font-size: 0.8rem;
+      padding: 0.25rem 0.5rem;
+    }
+  }
+
+  /* Make table rows clickable */
+  #returnedEquipmentTable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+  
+  #returnedEquipmentTable tbody tr:hover {
+    background-color: rgba(0, 123, 255, 0.1) !important;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-4 px-4">
   <div class="d-flex align-items-center justify-content-between mb-3">
-    <h5 class="fw-semibold mb-0">Returned Equipment
-    </h5>
+    <h5 class="fw-semibold mb-0">Returned Equipment</h5>
     <span class="badge bg-success text-white">{{ total_returned }}</span>
   </div>
 
   <div class="card shadow-sm border-0 rounded-4">
     <div class="card-body p-3">
+      <div class="mb-2">
+        <small class="text-muted"><i class="bi bi-info-circle"></i> Click on any row to view equipment details</small>
+      </div>
       <div class="table-responsive">
-        <table id="returnedEquipmentTable" class="table compact-table table-hover table-striped table-bordered align-middle text-nowrap small">
+        <table id="returnedEquipmentTable" class="table table-hover table-striped table-bordered align-middle">
           <thead class="table-success text-center align-middle">
             <tr>
               <th style="display:none;">ID</th>
@@ -26,10 +83,57 @@
               <th>Condition</th>
               <th>Return Type</th>
               <th>Received By</th>
+              {% if is_admin or is_superadmin %}
+              <th>Actions</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody></tbody>
         </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Equipment Details Modal -->
+<div class="modal fade" id="equipmentModal" tabindex="-1" aria-labelledby="equipmentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-1">
+        <h5 class="modal-title fw-semibold" id="equipmentModalLabel">Equipment Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body py-1 px-3" style="max-height: 75vh; overflow-y: auto;">
+        <div class="row mb-3">
+          <div class="col-md-4 text-center">
+            <img id="modalImage" src="" class="img-fluid rounded shadow-sm" style="width: 120px; height: 120px; object-fit: cover;" alt="Equipment Image">
+          </div>
+          
+          <div class="col-md-8">
+            <div class="row g-2">
+              <div class="col-sm-6"><small class="text-muted">Property #</small><div id="modalPropertyNum" class="fw-medium"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Name</small><div id="modalName" class="fw-medium"></div></div>
+              <div class="col-sm-12"><small class="text-muted">Description</small><div id="modalDesc" class="fw-normal text-wrap"></div></div>
+              <div class="col-sm-12"><small class="text-muted">Additional Info</small><div id="modalAddInfo" class="text-muted"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Amount</small><div id="modalAmount" class="fw-medium text-success"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Category</small><div id="modalCategory"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Status</small><div id="modalStatus"></div></div>
+              <div class="col-sm-6"><small class="text-muted">PO Number</small><div id="modalPONumber"></div></div>
+              <div class="col-sm-6"><small class="text-muted">PO Date</small><div id="modalPODate"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Fund Source</small><div id="modalFundSource"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Supplier</small><div id="modalSupplier"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Project Name</small><div id="modalProjectName"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Assigned To</small><div id="modalAssignedTo"></div></div>
+              <div class="col-sm-6"><small class="text-muted">End User</small><div id="modalEndUser"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Deployment Location</small><div id="modalLocation"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Current Location</small><div id="modalCurrentLocation"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Created</small><div id="modalCreated"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Created By</small><div id="modalCreatedBy"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Updated</small><div id="modalUpdated"></div></div>
+              <div class="col-sm-6"><small class="text-muted">Updated By</small><div id="modalUpdatedBy"></div></div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -40,25 +144,295 @@ $(document).ready(function () {
   $('#returnedEquipmentTable').DataTable({
     serverSide: true,
     processing: true,
+    responsive: true,
+    pageLength: 10,
     ajax: {
       url: '/equipments/returned/json/', 
       type: 'GET'
     },
     columns: [
       { title: "ID", visible: false },
-      { title: "Image", orderable: false },
-      { title: "Property #" },
-      { title: "Name" },
-      { title: "Description" },
-      { title: "Returned By" },
-      { title: "Return Document", orderable: false },
-      { title: "Date Returned" },
-      { title: "Remarks" },
-      { title: "Condition" },
-      { title: "Return Type" },
-      { title: "Received By" }
+      { title: "Image", orderable: false, responsivePriority: 3 },
+      { title: "Property #", responsivePriority: 1 },
+      { title: "Name", responsivePriority: 1 },
+      { title: "Description", responsivePriority: 4 },
+      { title: "Returned By", responsivePriority: 2 },
+      { 
+        title: "Return Document", 
+        orderable: false,
+        responsivePriority: 2,
+        render: function(data, type, row) {
+          if (data && data !== 'None' && data !== '[]') {
+            try {
+              const documents = JSON.parse(data);
+              if (documents && documents.length > 0) {
+                if (documents.length === 1) {
+                  // Single document - show View/Download buttons
+                  const doc = documents[0];
+                  return `
+                    <div class="btn-group-vertical gap-1" role="group">
+                      <button type="button" class="btn btn-sm btn-outline-primary" 
+                              onclick="viewDocument('${doc.url}', '${doc.filename}')">
+                        <i class="bi bi-eye"></i> <span class="d-none d-md-inline">View</span>
+                      </button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" 
+                              onclick="downloadDocument('${doc.url}', '${doc.filename}')">
+                        <i class="bi bi-download"></i> <span class="d-none d-md-inline">Download</span>
+                      </button>
+                    </div>
+                  `;
+                } else {
+                  // Multiple documents - show count and view all button
+                  return `
+                    <div class="text-center">
+                      <span class="badge bg-info mb-2">${documents.length} files</span><br>
+                      <button type="button" class="btn btn-sm btn-outline-primary" 
+                              onclick="viewMultipleDocuments('${encodeURIComponent(data)}')">
+                        <i class="bi bi-files"></i> <span class="d-none d-sm-inline">View All</span>
+                      </button>
+                    </div>
+                  `;
+                }
+              }
+            } catch (e) {
+              console.error('Error parsing documents data:', e);
+            }
+          }
+          return '<span class="text-muted">No document</span>';
+        }
+      },
+      { title: "Date Returned", responsivePriority: 3 },
+      { title: "Remarks", responsivePriority: 5 },
+      { title: "Condition", responsivePriority: 4 },
+      { title: "Return Type", responsivePriority: 5 },
+      { title: "Received By", responsivePriority: 4 }
+      {% if is_admin or is_superadmin %}
+      ,{ title: "Actions", orderable: false, responsivePriority: 1 }
+      {% endif %}
     ]
   });
+
+  // Row click handler for viewing equipment details
+  $('#returnedEquipmentTable tbody').on('click', 'tr', function (e) {
+    // Prevent modal if clicking on buttons or action elements
+    if (
+      $(e.target).closest('button').length ||
+      $(e.target).closest('a').length ||
+      $(e.target).closest('.dropdown').length
+    ) {
+      return;
+    }
+
+    var table = $('#returnedEquipmentTable').DataTable();
+    var data = table.row(this).data();
+    var equipmentId = data[0]; // ID is in the first column
+
+    // Fetch and show the equipment details modal
+    $.get(`/equipments/equipment/${equipmentId}/json/`, function(data) {
+        $('#modalImage').attr('src', data.image);
+        $('#modalPropertyNum').text(data.propertynum);
+        $('#modalName').text(data.name);
+        $('#modalDesc').text(data.desc);
+        $('#modalAddInfo').text(data.addinfo);
+        $('#modalAmount').text('₱' + data.amount);
+        $('#modalCategory').text(data.category);
+        $('#modalStatus').text(data.status);
+        $('#modalPONumber').text(data.po_number);
+        $('#modalPODate').text(data.po_date);
+        $('#modalFundSource').text(data.fund_source);
+        $('#modalSupplier').text(data.supplier);
+        $('#modalProjectName').text(data.project_name);
+        $('#modalAssignedTo').text(data.assigned_to);
+        $('#modalEndUser').text(data.end_user);
+        $('#modalLocation').text(data.location);
+        $('#modalCurrentLocation').text(data.current_location);
+        $('#modalCreated').text(data.created);
+        $('#modalCreatedBy').text(data.created_by);
+        $('#modalUpdated').text(data.updated);
+        $('#modalUpdatedBy').text(data.updated_by);
+        $('#equipmentModal').modal('show');
+    }).fail(function() {
+        alert('Failed to load equipment details. Please try again.');
+    });
+  });
 });
+
+// Function to view multiple documents
+function viewMultipleDocuments(documentsDataEncoded) {
+  try {
+    const documents = JSON.parse(decodeURIComponent(documentsDataEncoded));
+    
+    let documentsList = '';
+    documents.forEach((doc, index) => {
+      const fileExtension = doc.filename.split('.').pop().toLowerCase();
+      let previewIcon = 'bi-file-earmark';
+      
+      if (['pdf'].includes(fileExtension)) {
+        previewIcon = 'bi-file-earmark-pdf';
+      } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
+        previewIcon = 'bi-file-earmark-image';
+      } else if (['doc', 'docx'].includes(fileExtension)) {
+        previewIcon = 'bi-file-earmark-word';
+      } else if (['xls', 'xlsx'].includes(fileExtension)) {
+        previewIcon = 'bi-file-earmark-excel';
+      }
+      
+      documentsList += `
+        <div class="card mb-3">
+          <div class="card-body p-3">
+            <div class="row align-items-center">
+              <div class="col-auto">
+                <i class="${previewIcon} fs-2 text-primary"></i>
+              </div>
+              <div class="col">
+                <h6 class="card-title mb-1">${doc.filename}</h6>
+                <small class="text-muted">Uploaded: ${doc.uploaded_at}</small>
+              </div>
+              <div class="col-auto">
+                <div class="btn-group" role="group">
+                  <button type="button" class="btn btn-sm btn-outline-primary" 
+                          onclick="viewDocument('${doc.url}', '${doc.filename}')">
+                    <i class="bi bi-eye"></i> View
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" 
+                          onclick="downloadDocument('${doc.url}', '${doc.filename}')">
+                    <i class="bi bi-download"></i> Download
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    const modal = `
+      <div class="modal fade" id="multipleDocumentsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">
+                <i class="bi bi-files"></i> Return Documents (${documents.length} files)
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="max-height: 70vh; overflow-y: auto;">
+              ${documentsList}
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" onclick="downloadAllDocuments('${documentsDataEncoded}')">
+                <i class="bi bi-download"></i> Download All
+              </button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Remove existing modal if any
+    $('#multipleDocumentsModal').remove();
+    
+    // Add modal to body and show
+    $('body').append(modal);
+    $('#multipleDocumentsModal').modal('show');
+    
+    // Remove modal from DOM when hidden
+    $('#multipleDocumentsModal').on('hidden.bs.modal', function() {
+      $(this).remove();
+    });
+    
+  } catch (e) {
+    console.error('Error viewing multiple documents:', e);
+    alert('Error loading documents. Please try again.');
+  }
+}
+
+// Function to download all documents
+function downloadAllDocuments(documentsDataEncoded) {
+  try {
+    const documents = JSON.parse(decodeURIComponent(documentsDataEncoded));
+    
+    documents.forEach((doc, index) => {
+      setTimeout(() => {
+        downloadDocument(doc.url, doc.filename);
+      }, index * 500); // Stagger downloads by 500ms
+    });
+  } catch (e) {
+    console.error('Error downloading all documents:', e);
+    alert('Error downloading documents. Please try again.');
+  }
+}
+
+// Function to view document in a modal
+function viewDocument(documentUrl, fileName) {
+  const fileExtension = fileName.split('.').pop().toLowerCase();
+  let content = '';
+  
+  if (['pdf'].includes(fileExtension)) {
+    content = `<iframe src="${documentUrl}" width="100%" height="600px" frameborder="0"></iframe>`;
+  } else if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) {
+    content = `<img src="${documentUrl}" class="img-fluid" alt="Return Document">`;
+  } else {
+    content = `
+      <div class="text-center py-4">
+        <i class="bi bi-file-earmark fs-1 text-muted"></i>
+        <p class="mt-2 text-muted">Preview not available for this file type</p>
+        <a href="${documentUrl}" target="_blank" class="btn btn-primary">
+          <i class="bi bi-download"></i> Download to view
+        </a>
+      </div>
+    `;
+  }
+  
+  const modal = `
+    <div class="modal fade" id="documentModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="bi bi-file-earmark"></i> ${fileName}
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body p-0">
+            ${content}
+          </div>
+          <div class="modal-footer">
+            <a href="${documentUrl}" target="_blank" class="btn btn-outline-primary">
+              <i class="bi bi-box-arrow-up-right"></i> Open in new tab
+            </a>
+            <a href="${documentUrl}" download="${fileName}" class="btn btn-primary">
+              <i class="bi bi-download"></i> Download
+            </a>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Remove existing modal if any
+  $('#documentModal').remove();
+  
+  // Add modal to body and show
+  $('body').append(modal);
+  $('#documentModal').modal('show');
+  
+  // Remove modal from DOM when hidden
+  $('#documentModal').on('hidden.bs.modal', function() {
+    $(this).remove();
+  });
+}
+
+// Function to download document
+function downloadDocument(documentUrl, fileName) {
+  const link = document.createElement('a');
+  link.href = documentUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
 </script>
 {% endblock %}
