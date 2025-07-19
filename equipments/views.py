@@ -246,6 +246,7 @@ def equipment_detail_json(request, pk):
         "amount": f"{eq.item_amount:,.2f}" if eq.item_amount is not None else "None",
         "category": eq.category.name if eq.category and eq.category.name else "None",
         "status": eq.status.name if eq.status and eq.status.name else "None",
+        "damage_reason": eq.damage_reason if eq.damage_reason not in (None, '') else "None",
         "po_number": eq.po_number if eq.po_number not in (None, '') else "None",
         "fund_source": eq.fund_source if eq.fund_source not in (None, '') else "None",
         "supplier": eq.supplier if eq.supplier not in (None, '') else "None",
@@ -464,6 +465,7 @@ def edit_equipment(request, id):
             'emp_id': equipment.emp_id,
             'category_id': equipment.category_id,
             'status_id': equipment.status_id,
+            'damage_reason': equipment.damage_reason,
         }
 
         equipment.item_propertynum = request.POST.get('item_propertynum')
@@ -490,6 +492,19 @@ def edit_equipment(request, id):
         equipment.emp_id = request.POST.get('emp_id')
         equipment.category_id = request.POST.get('category_id')
         equipment.status_id = request.POST.get('status_id')
+        
+        # Handle damage reason - only save if status is "Damaged"
+        status_id = request.POST.get('status_id')
+        if status_id:
+            try:
+                selected_status = Status.objects.get(id=status_id)
+                if selected_status.name == 'Damaged':
+                    equipment.damage_reason = request.POST.get('damage_reason', '').strip()
+                else:
+                    equipment.damage_reason = None  # Clear if not damaged
+            except Status.DoesNotExist:
+                equipment.damage_reason = None
+        
         equipment.updated_by = request.user
 
         if request.FILES.get('user_image'):
@@ -519,6 +534,7 @@ def edit_equipment(request, id):
             'emp_id': 'Employee',
             'category_id': 'Category',
             'status_id': 'Status',
+            'damage_reason': 'Damage Reason',
         }
         for field, old in original.items():
             new = getattr(equipment, field)

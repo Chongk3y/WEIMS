@@ -234,6 +234,7 @@
               <div class="col-sm-6"><small class="text-muted">Amount</small><div id="modalAmount" class="fw-medium text-success"></div></div>
               <div class="col-sm-6"><small class="text-muted">Category</small><div id="modalCategory"></div></div>
               <div class="col-sm-6"><small class="text-muted">Status</small><div id="modalStatus"></div></div>
+              <div class="col-sm-12" id="modalDamageReasonRow" style="display: none;"><small class="text-muted">Damage Reason</small><div id="modalDamageReason" class="fw-normal text-wrap text-danger"></div></div>
               <div class="col-sm-6"><small class="text-muted">PO Number</small><div id="modalPONumber"></div></div>
               <div class="col-sm-6"><small class="text-muted">PO Date</small><div id="modalPODate"></div></div>
               <div class="col-sm-6"><small class="text-muted">Fund Source</small><div id="modalFundSource"></div></div>
@@ -665,6 +666,15 @@ $(document).on('change', '.column-select', function () {
         $('#modalAmount').text('₱' + data.amount);
         $('#modalCategory').text(data.category);
         $('#modalStatus').text(data.status);
+        
+        // Show/hide damage reason based on status
+        if (data.status === 'Damaged' && data.damage_reason !== 'None') {
+          $('#modalDamageReason').text(data.damage_reason);
+          $('#modalDamageReasonRow').show();
+        } else {
+          $('#modalDamageReasonRow').hide();
+        }
+        
         $('#modalPONumber').text(data.po_number);
         $('#modalPODate').text(data.po_date);
         $('#modalFundSource').text(data.fund_source);

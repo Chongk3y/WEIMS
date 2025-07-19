@@ -103,6 +103,7 @@ class Equipment(models.Model):
     return_type = models.CharField(max_length=30, blank=True, null=True, verbose_name="Return Type")
     returned_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Returned By")
     received_by = models.CharField(max_length=100, blank=True, null=True, verbose_name="Received By")
+    damage_reason = models.TextField(blank=True, null=True, verbose_name="Damage Reason")
     is_archived = models.BooleanField(default=False)
     date_archived = models.DateTimeField(null=True, blank=True)
     archived_by = models.ForeignKey(

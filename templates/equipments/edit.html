@@ -97,11 +97,17 @@
           </div>
           <div class="col-md-6">
             <label class="form-label small">Status</label>
-            <select class="form-select form-select-sm" name="status_id">
+            <select class="form-select form-select-sm" name="status_id" id="statusSelect">
               {% for stat in statuses %}
-              <option value="{{ stat.id }}" {% if equipment.status_id == stat.id %}selected{% endif %}>{{ stat.name }}</option>
+              <option value="{{ stat.id }}" data-status-name="{{ stat.name }}" {% if equipment.status_id == stat.id %}selected{% endif %}>{{ stat.name }}</option>
               {% endfor %}
             </select>
+          </div>
+
+          <!-- 🔧 Damage Reason (conditional field) -->
+          <div class="col-12" id="damageReasonSection" style="display: none;">
+            <label class="form-label small">Damage Reason</label>
+            <textarea class="form-control form-control-sm" name="damage_reason" rows="3" placeholder="Please describe the reason for damage...">{{ equipment.damage_reason }}</textarea>
           </div>
 
           <!-- ✅ Buttons -->
@@ -115,5 +121,36 @@
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const statusSelect = document.getElementById('statusSelect');
+  const damageReasonSection = document.getElementById('damageReasonSection');
+  const damageReasonTextarea = document.querySelector('textarea[name="damage_reason"]');
+
+  function toggleDamageReason() {
+    const selectedOption = statusSelect.options[statusSelect.selectedIndex];
+    const statusName = selectedOption.getAttribute('data-status-name');
+    
+    if (statusName === 'Damaged') {
+      damageReasonSection.style.display = 'block';
+      damageReasonTextarea.required = true;
+    } else {
+      damageReasonSection.style.display = 'none';
+      damageReasonTextarea.required = false;
+      // Clear the damage reason if switching away from damaged status
+      if (statusName !== 'Damaged') {
+        damageReasonTextarea.value = '';
+      }
+    }
+  }
+
+  // Check initial status on page load
+  toggleDamageReason();
+
+  // Listen for status changes
+  statusSelect.addEventListener('change', toggleDamageReason);
+});
+</script>
 
 {% endblock %}
